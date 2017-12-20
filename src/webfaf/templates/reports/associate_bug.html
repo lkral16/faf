@@ -6,12 +6,38 @@
 {% block body %}
   <div class="row">
     <div class="col-md-12">
-      <p>Associate bug with report {{report.id}}</p>
-      <form class="form" enctype="multipart/form-data" action="" method="POST">
-        {{ render_field(form.bug_id) }}
-        {{ render_field(form.bugtracker) }}
-        <p><button type='submit' class='btn btn-primary'>Submit</button></p>
-      </form>
+	 <p>Back to report <a href="{{ url_for('reports.item', report_id=report.id) }}">{{report.id}}</a></p>
+
+	{% if new_bug_urls %}
+        <div class="col-md-4">
+        <h2>Create bug</h2>
+        <form method="GET" action="" class="form" target="_blank">
+                <div class="input-group">
+                        <label for="create_bug">Create bug for:</label>
+                        <select id="create_bug" class="form-control" name="create_bug">
+                                        {% for (text, url) in new_bug_urls %}
+                                                <option value="{{ url }}"> {{ text }} </option>
+                                        {% endfor %}
+                        </select>
+                </div>
+                <p><button type="submit" class='btn btn-primary'>Create new bug</button></p>
+        </form>
+        </div>
+        {% endif %}	
+	<div class="col-md-4">
+	        <h2>Associate bug</h2>
+		<form class="form" enctype="multipart/form-data" action="" method="POST">
+		{{ render_field(form.bug_id) }}
+		{{ render_field(form.bugtracker) }}
+		<p><button type='submit' class='btn btn-primary'>Submit</button></p>
+	      </form>
+    	</div>
+
+	<div class="col-md-4">
+		<h2>Delete bug</h2>
+	</div>
+	
+
     </div>
     {% if new_bug_urls %}
       <div class="col-md-12">
@@ -26,3 +52,7 @@
     
   </div>
 {% endblock %}
+<!--
+
+	-->
+

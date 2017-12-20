@@ -33,9 +33,6 @@
         {% else %}
           <h3>Info</h3>
         {% endif %}
-        {% if unpackaged %}
-          Note: Executable of this report does not come from a package.
-        {% endif %}
         <dl class='info dl-horizontal'>
           <dt>Problem</dt>
           <dd>
@@ -104,12 +101,11 @@
           </div>
           <dt class="hide">Quality</dt>
           <dd class="hide">{{ report.quality }}</dd>
-          {% if report.bugs %}
-            <dt>External bugs</dt>
+          <dt>External bugs</dt>
             <dd>
               {{ external_bugs(report.bugs) }}
             </dd>
-          {% endif %}
+
           {% if contact_emails %}
             <dt>Contact emails</dt>
             <dd>
@@ -128,7 +124,7 @@
           {% endif %}
         </dl>
         {% if is_maintainer %}
-          <a href="{{url_for('reports.associate_bug', report_id=report.id)}}" class="btn btn-default">Associate bug</a>
+          <a href="{{url_for('reports.associate_bug', report_id=report.id)}}" class="pficon-edit"/>
         {% endif %}
 
         {# graphs #}
