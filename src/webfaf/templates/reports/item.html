@@ -103,8 +103,10 @@ in {{ report.backtraces[0].crash_function }}
   <dd class="hide">{{ report.quality }}</dd>
   <dt>External bugs</dt>
     <dd>
-      {{ external_bugs(report.bugs) }}
-      <a href="{{url_for('reports.associate_bug', report_id=report.id)}}" class="pficon-edit"/>
+       {{ external_bugs(report.bugs) }}
+	{% if is_maintainer %}
+		<a href="{{url_for('reports.associate_bug', report_id=report.id)}}" class="pficon-edit"></a>
+	{% endif %}
     </dd>
 
   {% if contact_emails %}
@@ -175,7 +177,6 @@ in {{ report.backtraces[0].crash_function }}
             } document.getElementById('archive-btn').onclick = archive;
          </script>
         {% endif %}
-
         {# graphs #}
 
         {% if releases|length > 1 or arches|length > 1 %}
