@@ -6,23 +6,25 @@
 {% block body %}
   <div class="row">
     <div class="col-md-12">
-	 <p>Back to report <a href="{{ url_for('reports.item', report_id=report.id) }}">{{report.id}}</a></p>
+	 <h3>Back to report <a href="{{ url_for('reports.item', report_id=report.id) }}">{{report.id}}</a></h3>
 
 	{% if new_bug_urls %}
         <div class="col-md-4">
         <h2>Create bug</h2>
-        <form method="GET" action="" class="form" target="_blank">
-                <div class="input-group">
-                        <label for="create_bug">Create bug for:</label>
-                        <select id="create_bug" class="form-control" name="create_bug">
-                                        {% for (text, url) in new_bug_urls %}
-                                                <option value="{{ url }}"> {{ text }} </option>
-                                        {% endfor %}
-                        </select>
-                </div>
-                <p><button type="submit" class='btn btn-primary'>Create new bug</button></p>
-        </form>
-        </div>
+	<form method="GET" class="form">
+		<div class="form-group">
+			<div class="input-group">
+				<label for="create_bug">Create bug for:</label>
+				<select id="create_bug" class="form-control" name="create_bug">
+						{% for (text, url) in new_bug_urls %}
+							<option value="{{ url }}"> {{ text }} </option>
+						{% endfor %}
+				</select>
+			</div>
+		</div>
+                <p><button type="submit" onclick="redirectToBugtracker()" name='create' class='btn btn-primary'>Create new bug</button></p>
+	</form>        
+	</div>
         {% endif %}	
 	<div class="col-md-4">
 	        <h2>Associate bug</h2>
@@ -39,20 +41,6 @@
 	
 
     </div>
-    {% if new_bug_urls %}
-      <div class="col-md-12">
-        <hr/>
-        <p class="text-muted">By clicking the links below, you'll be taken to a pre-filled form allowing you to create a new bug for this report. After creating the bug, please copy it's ID to the form above and associate it.</p>
-        {% for (text, url) in new_bug_urls %}
-          <p><a class="btn btn-default" href="{{url}}" target="_blank">Create new bug for {{text}}...</a></p>
-        {% endfor %}
-        
-      </div>
-    {% endif %}
-    
-  </div>
-{% endblock %}
-<!--
 
-	-->
+{% endblock %}
 
