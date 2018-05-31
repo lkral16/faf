@@ -25,6 +25,7 @@ in {{ report.backtraces[0].crash_function }}
 {% endblock js %}
 
 {% block body %}
+<<<<<<< HEAD
 <div class='report'>
 <div class='row'>
 <div class='col-md-6'>
@@ -140,10 +141,83 @@ in {{ report.backtraces[0].crash_function }}
                 {% else %}
                   If you don't consider this report useful, you can archive
                   it and it won't be displayed on reports dashboard.
+=======
+  <div class='report'>
+    <div class='row'>
+      <div class='col-md-6'>
+        {% if report.reasons %}
+          <h3>{{ report.reasons[0] }}</h3>
+        {% else %}
+          <h3>Info</h3>
+        {% endif %}
+        <dl class='info dl-horizontal'>
+          <dt>Problem</dt>
+          <dd>
+            {% if report.problem_id %}
+              <a href="{{ url_for('problems.item', problem_id=report.problem_id) }}"
+                >{{ report.problem_id }}</a>
+            {% else %}
+              <em>An owning problem doesn't exist yet.</em>
+            {% endif %}
+          </dd>
+          {% if extfafs %}
+            <dt>Ext. instances</dt>
+            <dd>
+              {% for extfaf in extfafs %}
+                {# In the very rare case when a report has multiple hashes, we must show them all#}
+                {%- for db_hash in report.hashes %}
+                  <a href="{{extfaf.baseurl}}/reports/bthash/{{db_hash.hash}}/">{{extfaf.name}}</a>{% if not loop.last %}, {% endif %}
+                {%- endfor -%}
+                {%- if not loop.last %}, {% endif %}
+              {% endfor %}
+            </dd>  
+          {% endif %}
+          <dt>Component</dt>
+          <dd>
+            {{ component.name }}
+            {% if report.tainted %}
+              <span class="label label-warning">Tainted</span>
+            {% endif %}
+          </dd>
+            <dt>Executable</dt>
+            <dd>
+              {{ executable }}
+            </dd>
+          {% if report.error_name %}
+            <dt>Error name</dt>
+            <dd>
+              {{ report.error_name }}
+            </dd>
+          {% endif %}
+          <dt>Created</dt>
+          <dd>{{ report.first_occurrence.strftime("%Y-%m-%d")}}</dd>
+          <dt>Last change</dt>
+          <dd>{{ report.last_occurrence.strftime("%Y-%m-%d")}}</dd>
+          {% if solutions %}
+          {#
+            I know, now can be only one solution, but this is preparation
+            to future, when we want allow have a multiple solution
+          #}
+          <dt>Solution</dt>
+          <dd>
+              {% for solution in solutions %}
+                {{ solution.note_html }}<br>
+              {% endfor %}
+          </dd>
+          {% endif %}
+          <div class="unique_data">
+            <dt>Unique reports</dt>
+            <dd>
+              {% for name, count in unique_ocurrence_os.iteritems() %}
+                {%- set unique_count = unique_count|default(0,true) + count.unique|default(0,true) -%}
+                {% if loop.last %}
+                  {{ unique_count }}
+>>>>>>> 6ec5ab0965bea7f840d9bbad1864ab89c61456b8
                 {% endif %}
             </span>
             <button id="archive-btn" class="btn btn-default">{% if report.archived %}Restore{% else %}Archive{% endif %}</button>
           </div>
+<<<<<<< HEAD
           <script type="text/javascript">
             var callback = function updatePage(result) {
               if (result.status == 'failure') {
@@ -168,6 +242,36 @@ in {{ report.backtraces[0].crash_function }}
                 }
               }
             }
+=======
+          <dt class="hide">Quality</dt>
+          <dd class="hide">{{ report.quality }}</dd>
+          <dt>External bugs</dt>
+            <dd>
+              {{ external_bugs(report.bugs) }}
+		{% if is_maintainer %}
+			<a href="{{url_for('reports.associate_bug', report_id=report.id)}}" class="pficon-edit"></a>
+		{% endif %}
+            </dd>
+
+          {% if contact_emails %}
+            <dt>Contact emails</dt>
+            <dd>
+              {% for email in contact_emails %}
+                <a href="mailto:{{email}}">{{email}}</a>
+              {% endfor %}
+            </dd>
+          {% endif %}
+          {% if report.urls %}
+            <dt>External URLs</dt>
+            <dd>
+              <ul>
+                {{ external_urls(report.urls) }}
+              </ul>
+            </dd>
+          {% endif %}
+	 </dl>
+        
+>>>>>>> 6ec5ab0965bea7f840d9bbad1864ab89c61456b8
 
             function archive() {
               var archived = {{report.archived | tojson}};
