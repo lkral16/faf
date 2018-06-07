@@ -524,3 +524,14 @@ FORM RENDERING
         <button type="submit" class="{{ btn_class }}">{{ action_text }} </button>
     </form>
 {%- endmacro %}
+
+{% macro render_buglist(bugs) -%}
+<ul style="list-style: none;">
+	{% for bug in bugs %}
+	<li>
+		<button type="submit" class="btn-delete" name="{{ bug }}" value="{{ bug }}"><i class="pficon-delete" style="color: red;"></i></button>
+		{{ bug }}
+	</li>
+	{% endfor %}
+</ul>
+{%- endmacro %}
