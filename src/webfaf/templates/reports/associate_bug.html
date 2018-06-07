@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_helpers.html" import render_field %}
+{% from "_helpers.html" import render_buglist %}
 
 {% block title %}Associate bug with report{% endblock %}
 
@@ -27,6 +28,7 @@
 	</div>
         {% endif %}	
 	<div class="col-md-4">
+        	<h2>Associate bug</h2>
 		<form class="form" enctype="multipart/form-data" action="" method="POST">
 		{{ render_field(form.bug_id) }}
 		{{ render_field(form.bugtracker) }}
@@ -35,7 +37,9 @@
     	</div>
 
 	<div class="col-md-4">
-		<h2>Delete bug</h2>
+		<h2>Buglist</h2>
+
+		{{ render_buglist(report.bugs) }}
 	</div>
 	
 
