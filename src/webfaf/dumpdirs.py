@@ -3,20 +3,27 @@ import re
 import tarfile
 import logging
 import datetime
-from cStringIO import StringIO
+import sys
+
+if sys.version_info.major == 2:
+#Python 2
+    from cStringIO import StringIO
+else:
+#Python 3
+    from io import StringIO
 
 from pyfaf.config import config, paths
 from flask import (Blueprint, render_template, request, abort, redirect,
                    url_for, flash, jsonify)
 from werkzeug import secure_filename
 from werkzeug.wrappers import Response
-from utils import admin_required, InvalidUsage, request_wants_json
+from webfaf.utils import admin_required, InvalidUsage, request_wants_json
 
 
 dumpdirs = Blueprint("dumpdirs", __name__)
 logger = logging.getLogger("webfaf.dumpdirs")
 
-from forms import NewDumpDirForm
+from webfaf.forms import NewDumpDirForm
 
 
 def check_filename(fn):
@@ -69,7 +76,7 @@ def item(dirname):
         if not os.path.isfile(archive_path):
             abort(404)
 
-        archive = file(archive_path)
+        archive = open(archive_path)
         archive_size = os.path.getsize(archive_path)
 
         return Response(archive, content_type="application/octet-stream",

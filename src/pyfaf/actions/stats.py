@@ -19,6 +19,7 @@
 
 from __future__ import unicode_literals
 
+from __future__ import division
 import datetime
 import collections
 
@@ -167,7 +168,7 @@ class Stats(Action):
             if len(history) < 2:
                 continue
 
-            hist_dict = collections.defaultdict(long)
+            hist_dict = collections.defaultdict(int)
             for key, value in history:
                 hist_dict[key] = value
 
@@ -182,11 +183,11 @@ class Stats(Action):
                 yysum += y * y
 
             # y = bx + a
-            b = xysum - xsum * ysum / num_days
-            b /= xxsum - xsum ** 2 / num_days
+            b = xysum - xsum * ysum // num_days
+            b //= xxsum - xsum ** 2 // num_days
 
             a = ysum - b * xsum
-            a /= num_days
+            a //= num_days
 
             first_day = hist_dict[prev_days(num_days)[0]]
             last_day = hist_dict[prev_days(num_days)[-1]]
@@ -239,13 +240,13 @@ class Stats(Action):
 
             minval = min(counts)
             maxval = max(counts)
-            scale = ((maxval - minval) << 8) / (len(self.graph_symbols) - 1)
+            scale = ((maxval - minval) << 8) // (len(self.graph_symbols) - 1)
             scale = max(scale, 1)
             graph = ""
 
             for day in prev_days(num_days):
                 graph += self.graph_symbols[((comp.history[day] - minval)
-                                             << 8) / scale]
+                                             << 8) // scale]
 
             out += row.format(component=comp.name,
                               jump=comp.jump,
@@ -288,8 +289,8 @@ class Stats(Action):
                                  last_date=since)
 
         if not cmdline.include_low_quality:
-            hot = filter(lambda x: x.quality >= 0, hot)
-        hot = filter(lambda p: p.type in self.ptypes, hot)
+            hot = [x for x in hot if x.quality >= 0]
+        hot = [p for p in hot if p.type in self.ptypes]
 
         out = ""
         if hot:
@@ -303,8 +304,8 @@ class Stats(Action):
 
         lt = query_longterm_problems(db, release_ids, history=self.history_type)
         if not cmdline.include_low_quality:
-            lt = filter(lambda x: x.quality >= 0, lt)
-        lt = filter(lambda p: p.type in self.ptypes, lt)
+            lt = [x for x in lt if x.quality >= 0]
+        lt = [p for p in lt if p.type in self.ptypes]
 
         if lt:
             out += "Long-term problems:\n\n"
@@ -357,7 +358,7 @@ class Stats(Action):
                                  last_date=since)
 
         if not cmdline.include_low_quality:
-            hot = filter(lambda x: x.quality >= 0, hot)
+            hot = [x for x in hot if x.quality >= 0]
 
         ptypes = ""
         if len(self.ptypes) != len(problemtypes):
@@ -365,7 +366,7 @@ class Stats(Action):
         out = "Overview of the top {0}{1} crashes over the last {2} days:\n".format(
             cmdline.count, ptypes, num_days)
 
-        hot = filter(lambda p: p.type in self.ptypes, hot)
+        hot = [p for p in hot if p.type in self.ptypes]
 
         for (rank, problem) in enumerate(hot[:cmdline.count]):
             out += "#{0} {1} - {2}x\n".format(
@@ -375,8 +376,8 @@ class Stats(Action):
 
             # Reports with bugzillas for this OpSysRelease go first
             reports = sorted(problem.reports,
-                             cmp=lambda x, y: len(filter(lambda b: b.opsysrelease_id in release_ids, x.bugs)) - len(filter(lambda b: b.opsysrelease_id in release_ids, y.bugs)),
-                             reverse=True)
+                             cmp=lambda x, y: len([b for b in x.bugs if b.opsysrelease_id in release_ids])
+                             - len([b for b in y.bugs if b.opsysrelease_id in release_ids]), reverse=True)
 
             if webfaf_installed():
                 for report in reports[:3]:
@@ -435,7 +436,7 @@ class Stats(Action):
         release = cmdline.opsys_release
 
         if len(cmdline.problemtype) < 1:
-            self.ptypes = problemtypes.keys()
+            self.ptypes = list(problemtypes.keys())
         else:
             self.ptypes = cmdline.problemtype
 

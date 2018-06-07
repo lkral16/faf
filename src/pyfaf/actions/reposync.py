@@ -84,8 +84,9 @@ class RepoSync(Action):
                 for arch in repo.arch_list:
                     try:
                         repo_instance = {
-                            'instance' : repo_types[repo.type](repo.name,
-                                            [url.url for url in repo.url_list]),
+                            'instance' : repo_types[repo.type](
+                            	   repo.name,
+                                [url.url for url in repo.url_list]),
                             'opsys' : None,
                             'release' : None,
                             'arch' : arch.name}
@@ -103,7 +104,7 @@ class RepoSync(Action):
                                   repo_instance['instance'].urls))
 
             pkglist = \
-                repo_instance['instance'].list_packages(architectures.keys())
+                repo_instance['instance'].list_packages(list(architectures.keys()))
             total = len(pkglist)
 
             self.log_info("Repository has '{0}' packages".format(total))

@@ -9,6 +9,7 @@ from flask import g
 from sqlalchemy import asc, distinct
 
 from wtforms import (Form,
+                     SubmitField,
                      validators,
                      SelectMultipleField,
                      TextField,
@@ -24,6 +25,7 @@ from pyfaf.storage.opsys import AssociatePeople, Arch
 from pyfaf.problemtypes import problemtypes
 from pyfaf.bugtrackers import bugtrackers
 from pyfaf.queries import get_associate_by_name
+import six
 
 
 class DaterangeField(TextField):
@@ -82,8 +84,8 @@ class TagListField(TextField):
 def component_list():
     sub = db.session.query(distinct(Report.component_id)).subquery()
     comps = (db.session.query(OpSysComponent.id, OpSysComponent.name)
-                       .filter(OpSysComponent.id.in_(sub))
-                       .all())
+             .filter(OpSysComponent.id.in_(sub))
+             .all())
     merged = defaultdict(list)
     for id, name in comps:
         merged[name].append(id)
@@ -94,16 +96,21 @@ def component_list():
 def component_names_to_ids(component_names):
     """
     `component_names` must be a string with comma-separated component names.
+    Returns [-1] if only invalid component_names were looked for.
     """
     component_ids = []
     if component_names:
-            component_names = map(lambda x: x.strip(),
-                                  component_names.split(','))
-            if len(component_names) > 0 and len(component_names[0]) > 0:
-                component_ids = map(itemgetter(0),
-                                    (db.session.query(OpSysComponent.id)
-                                     .filter(OpSysComponent.name.in_(component_names))
-                                     .all()))
+        component_names = [x.strip() for x in component_names.split(',')]
+        if len(component_names) > 0 and len(component_names[0]) > 0:
+            component_ids = list(map(itemgetter(0),
+                                     (db.session.query(OpSysComponent.id)
+                                      .filter(OpSysComponent.name.in_(component_names))
+                                      .all())))
+
+        # Some components were searched for but non was found in DB
+        if not component_ids:
+            component_ids = [-1]  # Put there some non-existing value
+
     return component_ids
 
 
@@ -192,12 +199,12 @@ class ProblemFilterForm(Form):
 
     bug_filter = SelectField("Bug status", validators=[validators.Optional()],
                              choices=[
-        ("None", "Any bug status"),
-        ("HAS_BUG", "Has a bug"),
-        ("NO_BUGS", "No bugs"),
-        ("HAS_OPEN_BUG", "Has an open bug"),
-        ("ALL_BUGS_CLOSED", "All bugs closed")
-    ])
+                                 ("None", "Any bug status"),
+                                 ("HAS_BUG", "Has a bug"),
+                                 ("NO_BUGS", "No bugs"),
+                                 ("HAS_OPEN_BUG", "Has an open bug"),
+                                 ("ALL_BUGS_CLOSED", "All bugs closed")
+                             ])
 
     def caching_key(self):
         associate = ()
@@ -229,13 +236,8 @@ class ReportFilterForm(Form):
 
     component_names = TextField()
 
-    first_occurrence_daterange = DaterangeField(
-        "First occurrence",
-        validators=[validators.Optional()],
-        default_days=None)
-
-    last_occurrence_daterange = DaterangeField(
-        "Last occurrence",
+    daterange = DaterangeField(
+        "Date range",
         validators=[validators.Optional()],
         default_days=None)
 
@@ -251,7 +253,7 @@ class ReportFilterForm(Form):
         ("last_occurrence", "Last occurrence"),
         ("first_occurrence", "First occurrence"),
         ("count", "Count")],
-        default="last_occurrence")
+                           default="last_occurrence")
 
     def caching_key(self):
         associate = ()
@@ -263,8 +265,7 @@ class ReportFilterForm(Form):
             tuple(self.arch.data or []),
             tuple(self.type.data or []),
             tuple(sorted(self.component_names.data or [])),
-            tuple(self.first_occurrence_daterange.data or []),
-            tuple(self.last_occurrence_daterange.data or []),
+            tuple(self.daterange.data or []),
             tuple(self.order_by.data or []),
             tuple(sorted(self.opsysreleases.data or []))))).hexdigest()
 
@@ -282,7 +283,7 @@ class SummaryForm(Form):
         ("d", "daily"),
         ("w", "weekly"),
         ("m", "monthly")],
-        default="d")
+                             default="d")
 
     def caching_key(self):
         return sha1("SummaryForm" + str((
@@ -312,7 +313,7 @@ class NewDumpDirForm(Form):
 class BugIdField(TextField):
     def _value(self):
         if self.data:
-            return unicode(self.data)
+            return six.text_type(self.data)
         else:
             return u''
 
@@ -336,5 +337,10 @@ class AssociateBzForm(Form):
         (name, name) for name in bugtrackers.keys()])
 
 
+class ProblemComponents(Form):
+    component_names = TextField()
+    submit = SubmitField("Reassign")
+
+
 # has to be at the end to avoid circular imports
-from webfaf_main import db
+from webfaf.webfaf_main import db

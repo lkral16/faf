@@ -23,6 +23,7 @@ from wtforms import (Form,
 
 from webfaf.forms import TagListField
 from webfaf.utils import Pagination, admin_required
+import six
 
 url_prefix = "/celery_tasks"
 
@@ -41,8 +42,8 @@ def index():
     inspect = celery_app.control.inspect()
     pts = db.session.query(PeriodicTask).order_by(PeriodicTask.id).all()
     trs = (db.session.query(TaskResult)
-                     .order_by(TaskResult.finished_time.desc())
-                     .limit(20).all())
+           .order_by(TaskResult.finished_time.desc())
+           .limit(20).all())
     return render_template("celery_tasks/index.html",
                            periodic_tasks=pts,
                            task_results=trs,
@@ -204,7 +205,7 @@ class ActionFormBase(Form):
 
     def to_cmdline_dict(self):
         res = {}
-        for name, kwargs in self.argparse_fields.iteritems():
+        for name, kwargs in six.iteritems(self.argparse_fields):
             data = getattr(self, name).data
             if kwargs.get("type"):
                 # Call the optional type processor, e.g. int
@@ -213,7 +214,7 @@ class ActionFormBase(Form):
         return res
 
     def from_cmdline_dict(self, cmdline):
-        for name, kwargs in self.argparse_fields.iteritems():
+        for name, kwargs in six.iteritems(self.argparse_fields):
             getattr(self, name).process_data(cmdline.get(name))
 
 
@@ -344,7 +345,7 @@ def schedule_item(pt_id):
 def results_list():
     pagination = Pagination(request)
     trs = (db.session.query(TaskResult)
-                     .order_by(TaskResult.finished_time.desc()))
+           .order_by(TaskResult.finished_time.desc()))
 
     if request.args.get("unsuccessful_only", "") == "true":
         trs = trs.filter(TaskResult.state != "SUCCESS")

@@ -8,7 +8,7 @@
     {% for row, cnt in data %}
       <tr class="package {%- if loop.index > row_limit and data|length > row_limit+1 %} hide {%- endif %}">
         <td>{{ row }}</td>
-        <td>{{ cnt }}</td>
+        <td>{{ cnt|readable_int }}</td>
       </tr>
       {% if data|length > row_limit+1 and loop.index == row_limit %}
         <tr>
@@ -67,12 +67,12 @@
       {% for name, cnt, versions in data %}
         <tr class="package {%- if loop.index > row_limit and data|length > row_limit+1 %} hide {%- endif %} {%- if loop.index % 2 == 0 %} stripe {%- endif %}">
           <td>{{ name }}</td>
-          <td>{{ cnt }}</td>
+          <td>{{ cnt|readable_int }}</td>
         </tr>
         {% for version, cnt in versions %}
           <tr class="version hide">
             <td>&nbsp;&nbsp;{{version}}</td>
-            <td>{{cnt}}</td>
+            <td>{{ cnt|readable_int }}</td>
           </tr>
         {% endfor %}
         {% if data|length > row_limit+1 and loop.index == row_limit %}
@@ -334,8 +334,9 @@
       {{ frame.symbolsource.line_number}}
     {%- endif %}
   {%- else %}
-    {{ frame.symbolsource.func_offset|memory_address or '-' }}</td>
+    {{ frame.symbolsource.func_offset|memory_address or '-' }}
   {%- endif %}
+</td>
 {%- endmacro %}
 
 {% macro show_backtrace(backtrace, type, oops) -%}
@@ -371,11 +372,14 @@
 {%- endmacro %}
 
 {% macro external_urls(urls) -%}
-{% for url_obj in urls %}
-  <li><a
-    href="{{ url_obj.url }}">{{ url_obj.url }}
-    </a>
-  </li>
+{% for report_url in urls %}
+    {% for url_obj in report_url %}
+      <li><a
+        href="{{ url_obj.url }}">{{ url_obj.url }}
+        </a>
+      </li>
+    {% endfor %}
+    <li class="empty-line"><hr></li>
 {% endfor %}
 {%- endmacro %}
 

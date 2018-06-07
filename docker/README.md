@@ -5,20 +5,24 @@
 
 ## How to deploy
 
-It is as simple as:
+Prerequisites:
+A postgres database with semver extension is needed. Using abrt/postgres-semver
+image is recommended.
+`docker run -p 5432:5432 -v /var/tmp/data:/var/lib/pgsql/data -e POSTGRESQL_ADMIN_PASSWORD=scrt --name db -dit postgres-semver`
 
-`docker run --name faf -dit abrt/faf-image`
+Running FAF is as simple as:
 
-However you also probably want to mount volumes to `/var/lib/postgres` and
-to `/var/spool/faf` not to lose database and FAF's data.
+`docker run --name faf -dit -e PGHOST=$(DB_IP) -e PGUSER=faf -e PGPASSWORD=scrt -e PGPORT=5432 -e PGDATABASE=faf -p 8080:8080 faf-image`
 
-`docker run --name faf -v /var/lib/faf-docker/faf:/var/spool/faf -v
-/var/lib/faf-docker/postgres:/var/lib/postgres/ -dit abrt/faf-image`
+However you also probably want to mount volumes to `/var/spool/faf` not to lose 
+FAF's data.
+
+`docker run --name faf -dit -v /var/lib/faf-docker/faf:/var/spool/faf -e PGHOST=$(DB_IP) -e PGUSER=faf -e PGPASSWORD=scrt -e PGPORT=5432 -e PGDATABASE=faf -p 8080:8080 faf-image`
 
 Then FAF is ready for use.
 
 ## What's next
-You can see incoming reports in webUI. It is accessible on `http://<container_IP>/faf`.
+You can see incoming reports in webUI. It is accessible on `http://<container_IP>:8080/faf`.
 
 Finding out container IP address:
 
@@ -26,7 +30,7 @@ Finding out container IP address:
 
 Also to send reports into your own FAF, you have to set up libreport on all
 machines, from with you wish to report into your own FAF. To do so, set up
-`URL = http://<container_IP>/faf` in `/etc/libreport/plugins/ureport.conf`.
+`URL = http://<container_IP>:8080/faf` in `/etc/libreport/plugins/ureport.conf`.
 
 ## Configuring FAF
 New containers come with fully working and configured FAF (on top of basic configuration
@@ -34,7 +38,7 @@ Fedora releases are added, caching is disabled, and FAF accepts unknown componen
 
 To run any FAF action, please run them as faf user.
 
-`docker exec -u faf faf faf <action> <arguments>`
+`docker exec faf faf <action> <arguments>`
 
 ## How to build the image
 `cd faf/docker`
@@ -42,6 +46,8 @@ To run any FAF action, please run them as faf user.
 `make build` to build from copr
 
 `make build_local` to build from currently checked out github branch
+
+`make build_db` to build database
 
 For easier using and debugging you can use also:
 
@@ -52,3 +58,5 @@ For easier using and debugging you can use also:
 `make sh` to jump into bash in the container
 
 `make del` to remove faf container
+
+'make run_db' to run database

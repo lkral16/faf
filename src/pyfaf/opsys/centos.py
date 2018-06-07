@@ -17,22 +17,17 @@
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import absolute_import
 
-import re
 from pyfaf.opsys import System
 from pyfaf.checker import DictChecker, IntChecker, ListChecker, StringChecker
 from pyfaf.common import FafError, log
-from pyfaf.queries import (get_archs,
-                           get_arch_by_name,
+from pyfaf.queries import (get_arch_by_name,
                            get_opsys_by_name,
                            get_package_by_nevra,
-                           get_releases,
                            get_reportpackage,
-                           get_repos_for_opsys,
                            get_unknown_package)
 from pyfaf.storage import (Arch,
                            Build,
                            OpSys,
-                           OpSysReleaseStatus,
                            Package,
                            ReportPackage,
                            ReportUnknownPackage,
@@ -168,11 +163,11 @@ class CentOS(System):
         CentOS.packages_checker.check(packages)
         affected = False
         for package in packages:
-            if ("package_role" in package):
-                if (package["package_role"] not in CentOS.pkg_roles):
+            if "package_role" in package:
+                if package["package_role"] not in CentOS.pkg_roles:
                     raise FafError("Only the following package roles are allowed: "
                                    "{0}".format(", ".join(CentOS.pkg_roles)))
-                if (package["package_role"] == "affected"):
+                if package["package_role"] == "affected":
                     affected = True
 
         if not(affected or self.allow_unpackaged):

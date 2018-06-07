@@ -17,7 +17,6 @@
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 
 from rpm import labelCompare
-import signal
 
 BOOL_TRUE_STRINGS = ["1", "y", "t", "yes", "true"]
 
@@ -105,5 +104,5 @@ def signal2name(signal, with_number=False):
         number = " {0}".format(signal)
     try:
         return SIGNAL_TO_NAME_DICT[int(signal)]+number
-    except ValueError, KeyError:
+    except (ValueError, KeyError):
         return "UNKNOWN_SIGNAL"+number

@@ -45,7 +45,6 @@ from pyfaf.queries import (get_arch_by_name,
                            get_reportosrelease,
                            get_reportbz)
 from pyfaf.storage import (Arch,
-                           BzBug,
                            ContactEmail,
                            OpSysComponent,
                            OpSysRelease,
@@ -74,7 +73,7 @@ __all__ = ["get_version", "save", "ureport2",
 
 UREPORT_CHECKER = DictChecker({
     "os":              DictChecker({
-        "name":            StringChecker(allowed=systems.keys()),
+        "name":            StringChecker(allowed=list(systems.keys())),
         "version":         StringChecker(pattern=r"^[a-zA-Z0-9_\.\-\+~]+$",
                                          maxlen=column_len(OpSysRelease,
                                                            "version")),
@@ -87,7 +86,7 @@ UREPORT_CHECKER = DictChecker({
     "packages":        ListChecker(Checker(object)),
 
     "problem":         DictChecker({
-        "type":            StringChecker(allowed=problemtypes.keys()),
+        "type":            StringChecker(allowed=list(problemtypes.keys())),
         # Anything else will be checked by the plugin
     }),
 
@@ -584,7 +583,8 @@ def is_known(ureport, db, return_report=False, opsysrelease_id=None):
     if 'EQUAL_UREPORT_EXISTS' in known_type:
         report_os = ureport["os"]
 
-    report = get_report(db, report_hash, os_name=report_os['name'], os_version=report_os['version'], os_arch=report_os['architecture'])
+    report = get_report(db, report_hash, os_name=report_os['name'], os_version=report_os['version'],
+                        os_arch=report_os['architecture'])
 
     if report is None:
         return None
@@ -607,7 +607,7 @@ def is_known(ureport, db, return_report=False, opsysrelease_id=None):
 
         found = True
 
-    elif (not known_type):
+    elif not known_type:
         bzs = get_reportbz(db, report.id, opsysrelease_id).all()
         for bz in bzs:
             if not bz.bzbug.private:

@@ -31,19 +31,18 @@ down_revision = '23bab42e7be7'
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 
 def upgrade():
     op.create_table('reportreleasedesktops',
-    sa.Column('report_id', sa.Integer(), nullable=False),
-    sa.Column('release_id', sa.Integer(), nullable=False),
-    sa.Column('desktop', sa.String(length=256), nullable=False),
-    sa.Column('count', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['release_id'], ['opsysreleases.id'], ),
-    sa.ForeignKeyConstraint(['report_id'], ['reports.id'], ),
-    sa.PrimaryKeyConstraint('report_id', 'release_id', 'desktop'),
-    )
+                    sa.Column('report_id', sa.Integer(), nullable=False),
+                    sa.Column('release_id', sa.Integer(), nullable=False),
+                    sa.Column('desktop', sa.String(length=256), nullable=False),
+                    sa.Column('count', sa.Integer(), nullable=False),
+                    sa.ForeignKeyConstraint(['release_id'], ['opsysreleases.id'], ),
+                    sa.ForeignKeyConstraint(['report_id'], ['reports.id'], ),
+                    sa.PrimaryKeyConstraint('report_id', 'release_id', 'desktop'),
+                   )
 
 
 def downgrade():

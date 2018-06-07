@@ -18,7 +18,15 @@
 
 import os
 import logging
-import ConfigParser
+
+import sys
+if sys.version_info.major == 2:
+#Python 2
+    import ConfigParser as configparser
+else:
+#Python 3+
+    import configparser
+
 from pyfaf.local import etc, var
 
 __all__ = ["config"]
@@ -36,9 +44,8 @@ def get_config_files(directory):
     and return their full paths.
     """
 
-    return filter(lambda fname: fname.endswith(CONFIG_FILE_SUFFIX),
-                  [os.path.abspath(os.path.join(directory, filename))
-                   for filename in os.listdir(directory)])
+    return [fname for fname in [os.path.abspath(os.path.join(directory, filename))
+                                for filename in os.listdir(directory)] if fname.endswith(CONFIG_FILE_SUFFIX)]
 
 
 def load_config_files(config_files):
@@ -47,7 +54,7 @@ def load_config_files(config_files):
     """
 
     result = {}
-    parser = ConfigParser.SafeConfigParser()
+    parser = configparser.SafeConfigParser()
     parser.read(config_files)
 
     for section in parser.sections():
@@ -73,7 +80,7 @@ def load_config():
         else:
             logging.error("Config file specified by {0} environment variable"
                           " ({1}) not found or unreadable".format(
-                          CONFIG_FILE_ENV_VAR, fpath))
+                              CONFIG_FILE_ENV_VAR, fpath))
 
     cfg = load_config_files(main_config_files)
 

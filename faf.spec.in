@@ -1,34 +1,19 @@
 %define faf_version @PACKAGE_VERSION@
 
-%if 0%{?fedora:%{fedora} < 14}%{?rhel:%{rhel} < 7}
-    %bcond_with systemd
-%else
-    %bcond_without systemd
-%endif
-
 Name: faf
 Version: %{faf_version}
 Release: 1%{?dist}
 Summary: Software Problem Analysis Tool
-Group: Development/Libraries
 License: GPLv3+
 URL: https://github.com/abrt/faf/
 Source0: https://github.com/abrt/%{name}/archive/%{version}/%{name}-%{version}.tar.gz
 
 BuildArch: noarch
 
-%if 0%{?rhel:%{rhel} < 7}
-%define sqlalchemy python-sqlalchemy0.8
-%define python_argparse python-argparse
-%define satyr_dep satyr-python >= 0.16
+%if 0%{?rhel} == 7
+%global satyr_dep satyr-python > 0.13-1
 %else
-%define sqlalchemy python-sqlalchemy >= 0.8
-%define python_argparse python
-%if 0%{?rhel:%{rhel} == 7}
-%define satyr_dep satyr-python > 0.13-1
-%else
-%define satyr_dep satyr-python >= 0.16
-%endif
+%global satyr_dep satyr-python >= 0.16
 %endif
 
 
@@ -37,11 +22,21 @@ Requires(pre): shadow-utils
 Requires: pg-semver
 Requires: postgresql
 Requires: postgresql-server
-Requires: %{python_argparse}
+Requires: python
 Requires: python-setuptools
 Requires: python-psycopg2 >= 2.5
-Requires: %{sqlalchemy}
+Requires: python-sqlalchemy >= 0.8
 Requires: rpm-python
+
+# six library to cover Python 3 compatibility
+%if 0%{?fedora}
+Requires:      python2-six
+BuildRequires: python2-six
+%else
+# rhel7
+Requires:      python-six
+BuildRequires: python-six
+%endif
 
 BuildRequires: autoconf
 BuildRequires: intltool
@@ -49,8 +44,7 @@ BuildRequires: libtool
 
 # requirements for tests
 BuildRequires: createrepo
-BuildRequires: %{python_argparse}
-BuildRequires: packagedb-cli
+BuildRequires: python
 BuildRequires: pg-semver
 BuildRequires: postgresql
 BuildRequires: postgresql-server
@@ -59,12 +53,18 @@ BuildRequires: python-setuptools
 BuildRequires: python-unittest2
 BuildRequires: python-bugzilla >= 2.0
 BuildRequires: python-psycopg2 >= 2.5
-BuildRequires: python-testing.postgresql
+BuildRequires: python-testing.postgresql < 1.2
 BuildRequires: rpm-python
-BuildRequires: %{sqlalchemy}
+BuildRequires: python-sqlalchemy >= 0.8
 BuildRequires: yum
 BuildRequires: %{satyr_dep}
 BuildRequires: python2-koji
+BuildRequires: python-suds
+BuildRequires: fedmsg
+%if 0%{?fedora}
+BuildRequires: python3-pylint
+%endif
+
 # webui
 BuildRequires: python-flask >= 0.10
 BuildRequires: python-flask-wtf
@@ -75,6 +75,7 @@ BuildRequires: python-flask-sqlalchemy
 BuildRequires: python-jinja2 >= 2.7
 BuildRequires: python-bunch
 BuildRequires: python-dateutil
+BuildRequires: python2-ratelimitingfilter
 
 %description
 faf is a programmable tool for analysis of packages, packaging
@@ -95,6 +96,7 @@ Requires: python-openid-teams
 Requires: python-jinja2 >= 2.7
 Requires: python-bunch
 Requires: python-dateutil
+Requires: python2-ratelimitingfilter
 
 %description webui
 A WebUI rewrite
@@ -159,7 +161,6 @@ A plugin for %{name} implementing support for CentOS operating system.
 %package opsys-fedora
 Summary: %{name}'s Fedora operating system plugin
 Requires: %{name} = %{faf_version}
-Requires: packagedb-cli
 Requires: koji
 Requires: python2-koji
 
@@ -185,7 +186,7 @@ A plugin for %{name} implementing archive-reports action
 %package action-create-problems
 Summary: %{name}'s create-problems plugin
 Requires: %{name} = %{faf_version}
-Requires: satyr-python >= 0.9
+Requires: %{satyr_dep}
 
 %description action-create-problems
 A plugin for %{name} implementing create-problems action
@@ -503,11 +504,14 @@ Requires: python-celery >= 3.1
 %description celery-tasks
 Task queue using Celery.
 
-%if %{with systemd}
 %package celery-tasks-systemd-services
 Summary: %{name}'s Celery task queue systemd services
 Requires: %{name} = %{faf_version}
+%if 0%{?fedora} > 27 || 0%{?rhel} > 7
+%{?systemd_requires}
+%else
 Requires: systemd-units
+%endif
 
 %description celery-tasks-systemd-services
 systemd services for the Celery task queue.
@@ -523,18 +527,13 @@ systemd services for the Celery task queue.
 %postun celery-tasks-systemd-services
 %systemd_postun_with_restart faf-celery-beat.service
 %systemd_postun_with_restart faf-celery-worker.service
-%endif
 
 %prep
 %setup -q
 ./autogen.sh
 
 %build
-%if %{with systemd}
 %configure
-%else
-%configure --without-systemd
-%endif
 make %{?_smp_mflags}
 
 %install
@@ -571,16 +570,17 @@ mkdir -p %{buildroot}%{_localstatedir}/spool/faf/openid_store
 # /var/log
 mkdir -p %{buildroot}%{_localstatedir}/log/faf/
 
-%if %{with systemd}
 mkdir -p %{buildroot}%{_tmpfilesdir}
 mkdir -p %{buildroot}/run/faf-celery
-%endif
 
 %posttrans
 %systemd_post httpd.service
 
 %check
 make check || ( cat tests/test-suite.log ; cat tests/webfaf/test-suite.log ; exit 1 )
+pushd src
+pylint-3 --rcfile=../pylintrc $(find ./ -name *.py) webfaf/hub.wsgi bin/faf-migrate-db bin/faf || :
+popd
 
 %pre
 # http://fedoraproject.org/wiki/Packaging:UsersAndGroups
@@ -729,7 +729,7 @@ fi
 %config(noreplace) %{_sysconfdir}/httpd/conf.d/faf-web.conf
 %config(noreplace) %{_sysconfdir}/faf/plugins/web.conf
 
-# /usr/lib/python*/pyfaf
+# /usr/lib/python*/webfaf
 %dir %{python_sitelib}/webfaf
 %{python_sitelib}/webfaf/__init__.py*
 %{python_sitelib}/webfaf/config.py*
@@ -766,6 +766,7 @@ fi
 %{python_sitelib}/webfaf/templates/problems/item.html
 %{python_sitelib}/webfaf/templates/problems/list.html
 %{python_sitelib}/webfaf/templates/problems/list_table_rows.html
+%{python_sitelib}/webfaf/templates/problems/problems_table.html
 %{python_sitelib}/webfaf/templates/problems/multiple_bthashes.html
 %{python_sitelib}/webfaf/templates/problems/waitforit.html
 
@@ -791,6 +792,8 @@ fi
 %dir %{_datadir}/faf/web/static
 %dir %{_datadir}/faf/web/static/js
 %dir %{_datadir}/faf/web/static/css
+%dir %{_datadir}/faf/web/static/fonts
+%dir %{_datadir}/faf/web/static/icons
 %{_datadir}/faf/web/static/js/*.js
 %{_datadir}/faf/web/static/fonts/*.otf
 %{_datadir}/faf/web/static/fonts/*.woff
@@ -798,6 +801,7 @@ fi
 %{_datadir}/faf/web/static/fonts/*.svg
 %{_datadir}/faf/web/static/fonts/*.ttf
 %{_datadir}/faf/web/static/css/*.css
+%{_datadir}/faf/web/static/icons/*.png
 
 # /var/spool/faf
 %dir %attr(0770, faf, faf) %{_localstatedir}/spool/faf/dumpdirs
@@ -1008,7 +1012,6 @@ fi
 %{python_sitelib}/pyfaf/celery_tasks/__init__.py*
 %{python_sitelib}/pyfaf/celery_tasks/schedulers.py*
 
-%if %{with systemd}
 %files celery-tasks-systemd-services
 %{_unitdir}/faf-celery-beat.service
 %{_unitdir}/faf-celery-worker.service
@@ -1016,9 +1019,59 @@ fi
 %config(noreplace) %{_sysconfdir}/faf/celery-worker-env.conf
 %{_tmpfilesdir}/faf-celery-tmpfiles.conf
 %dir %attr(0775, faf, faf) /run/faf-celery/
-%endif
 
 %changelog
+* Thu Apr 19 2018 Matej Marusak <mmarusak@redhat.com> 1.3.1-1
+- changelog: Update changelog
+- py3 compatibility: Replacement of zip with six.moves.zip
+- py3 compatibility: Replacement of xrange with six.moves.range
+- py3 compatibility: Replacement of `unicode` type with `six.text_type`
+- py3 compatibility: Replace StringIO and cStringIO modules with io module
+- py3 compatibility: Removal of tuple parameter unpacking
+- py3 compatibility: Replacement of type()== with isinstance()
+- py3 compatibility: Replacement of long type with int type
+- py3 compatibility: print statement is replaced with a print() function
+- py3 compatibility: Add `from functools import reduce`
+- py3 compatibility: New literal syntax for sets
+- py3 compatibility: Replace file() by open()
+- py3 compatibility: classic division
+- py3 compatibility: Replace StandardError by Exception
+- pyfaf: multiple exceptions fix
+- spec: Add build require for ratelimitingfilter
+- webfaf: Limit the number of exception mails
+- webfaf: Do not file any problems on unknown components
+- reports: Fix typo
+- fedora: Pull acls from pagure
+- fedora: Pull components from pdc
+- fedora: Pull releases from pdc
+- storage: Import all events
+- common: Enanble importing modules with prefix
+- Update README.rst
+- storage: Remove unused imports
+
+* Mon Mar 05 2018 Matej Marusak <mmarusak@redhat.com> 1.3.0-1
+- changelog: Update changelog
+- openshift: Add Openshift templates
+- webfaf: Replace deprecated flask import
+- config: Enable setting up DB with env variables
+- config: Enhance setting up database connection string
+- autogen: correctly parse buildrequires from spec file
+- spec: Replace systemd-units with macro
+- spec: Drop builds for non-systemd systems
+- spec: Use global rather than define
+- spec: Remove obsoleted stuff from spec
+- spec: Add BuildRequires fedmsg and python-suds
+- Fix comps creating in create-problems
+- webfaf: Explain ordering of External URLS
+- webfaf: Order reports external urls from newest
+- webfaf: Put empty line between reports external urls
+- spec: Random secret without fold
+- build: By default require python2-koji
+- spec: Always restart apache
+- webfaf: Order external urls by incoming time
+- kerneloops: Accept oopses without address
+- ureport: Always check for validity of ureport
+
 * Wed Oct 25 2017 Martin Kutlak <mkutlak@redhat.com> 1.2.1-1
 - changelog: Update changelog
 - reports: Inform user that report does not contain crash package

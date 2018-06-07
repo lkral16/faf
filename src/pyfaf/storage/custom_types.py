@@ -86,6 +86,7 @@ def to_semver(version_string):
 
     - erases non-semver_safe characters (2.23_05b -> 2.2305)
     - merges everything after the second dot character (0.2.4.25 -> 0.2.425)
+    - make sure that there are exactly two dots (1.2 -> 1.2.0)
     - fits parts of the result into 31 bit range (20130222622 -> 2013022262)
 
     """
@@ -93,11 +94,30 @@ def to_semver(version_string):
     if is_semver(version_string):
         return version_string
 
+    if len(version_string) == 0:
+        return "0.0.0"
+
+    version_string = version_string.replace(',', '.')
+    version_string = semver_safe.sub('', version_string)
+
     if version_string.count('.') > 2:
         sp = version_string.split('.')
         version_string = '.'.join(sp[:3]) + ''.join(sp[3:])
 
-    version_string = semver_safe.sub('', version_string)
+    sp = version_string.split('.')
+    version_string = ""
+    for s in sp:
+        if len(s) == 0:
+            version_string = version_string + "0."
+        else:
+            version_string = version_string + s + "."
+
+    version_string = version_string[:-1]
+
+    if version_string.count('.') < 2:
+        for i in range(2 - version_string.count('.')):
+            version_string = version_string + ".0"
+
 
     def fit(part):
         """
@@ -113,5 +133,4 @@ def to_semver(version_string):
     if len(version_string) >= 10:
         parts = version_string.split('.')
         version_string = '.'.join(map(fit, parts))
-
     return version_string

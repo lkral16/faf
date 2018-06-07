@@ -6,10 +6,18 @@ try:
     import unittest2 as unittest
 except ImportError:
     import unittest
-from StringIO import StringIO
+
+import sys
+if sys.version_info.major == 2:
+#Python 2
+    from StringIO import StringIO
+else:
+#Python 3
+    from io import StringIO
+
 from webfaftests import WebfafTestCase
 
-from pyfaf.storage import InvalidUReport, Report, ReportHash, BzBug, ReportBz, Bugtracker, BzUser, BzBug
+from pyfaf.storage import InvalidUReport, Report, BzBug, ReportBz, Bugtracker, BzUser
 from pyfaf import config, ureport
 from pyfaf.queries import *
 
@@ -41,7 +49,7 @@ class ReportTestCase(WebfafTestCase):
         bzuser.email = "test@redhat.com"
         bzuser.name = "test@redhat.com"
         bzuser.real_name = "Test User"
-        bzuser.can_login = "t"
+        bzuser.can_login = True
 
         bzbug = BzBug()
         bzbug.opsysrelease_id = 1
@@ -179,9 +187,9 @@ class ReportTestCase(WebfafTestCase):
         self.clear_reports()
         config.config['ureport.known'] = "EQUAL_UREPORT_EXISTS"
 
-        source = [{ 'file_name': 'ureport_duplicate', 'result': False },
-                  { 'file_name': 'ureport_duplicate', 'result': True },
-                  { 'file_name': 'ureport_duplicate2', 'result': False }]
+        source = [{'file_name': 'ureport_duplicate', 'result': False},
+                  {'file_name': 'ureport_duplicate', 'result': True},
+                  {'file_name': 'ureport_duplicate2', 'result': False}]
 
         for item in source:
             path = os.path.join(self.reports_path, item['file_name'])
@@ -208,8 +216,8 @@ class ReportTestCase(WebfafTestCase):
         self.clear_reports()
         config.config['ureport.known'] = ""
 
-        source = [{ 'file_name': 'ureport_duplicate', 'result': False },
-                  { 'file_name': 'ureport_duplicate', 'result': False }]
+        source = [{'file_name': 'ureport_duplicate', 'result': False},
+                  {'file_name': 'ureport_duplicate', 'result': False}]
 
         i = 0
         for item in source:
@@ -247,11 +255,11 @@ class ReportTestCase(WebfafTestCase):
         self.clear_reports()
         config.config['ureport.known'] = "BUG_OS_MINOR_VERSION"
 
-        source = [{ 'file_name': 'ureport_duplicate', 'result': False },
-                  { 'file_name': 'ureport_duplicate', 'result': True },
-                  { 'file_name': 'ureport_duplicate2', 'result': False },
-                  { 'file_name': 'ureport_duplicate3', 'result': False },
-                  { 'file_name': 'ureport_duplicate4', 'result': False }]
+        source = [{'file_name': 'ureport_duplicate', 'result': False},
+                  {'file_name': 'ureport_duplicate', 'result': True},
+                  {'file_name': 'ureport_duplicate2', 'result': False},
+                  {'file_name': 'ureport_duplicate3', 'result': False},
+                  {'file_name': 'ureport_duplicate4', 'result': False}]
 
         i = 0
         for item in source:
@@ -287,11 +295,11 @@ class ReportTestCase(WebfafTestCase):
         self.clear_reports()
         config.config['ureport.known'] = "BUG_OS_MAJOR_VERSION"
 
-        source = [{ 'file_name': 'ureport_duplicate', 'result': False },
-                  { 'file_name': 'ureport_duplicate', 'result': True },
-                  { 'file_name': 'ureport_duplicate2', 'result': True },
-                  { 'file_name': 'ureport_duplicate3', 'result': False },
-                  { 'file_name': 'ureport_duplicate4', 'result': False }]
+        source = [{'file_name': 'ureport_duplicate', 'result': False},
+                  {'file_name': 'ureport_duplicate', 'result': True},
+                  {'file_name': 'ureport_duplicate2', 'result': True},
+                  {'file_name': 'ureport_duplicate3', 'result': False},
+                  {'file_name': 'ureport_duplicate4', 'result': False}]
 
         i = 0
         for item in source:
@@ -330,9 +338,9 @@ class ReportTestCase(WebfafTestCase):
         self.db.session.commit()
         self.db.session.flush()
 
-        first_js  = json.loads(first.data)
+        first_js = json.loads(first.data)
 
-        report  = get_report(self.db, first_js['bthash'])
+        report = get_report(self.db, first_js['bthash'])
 
         report1 = get_report(self.db, first_js['bthash'], os_name='centos',
                               os_version='6.7', os_arch='x86_64')
@@ -377,7 +385,7 @@ class ReportTestCase(WebfafTestCase):
                                            "BUG_OS_MINOR_VERSION".split(" "))
         result4 = ureport.valid_known_type("  ".strip().split(" "))
         result5 = ureport.valid_known_type("BUGS_OS_MAJOR_VERSION".split(" "))
-        result6 = ureport.valid_known_type( "EQUAL_UREPORT_EXISTS   "
+        result6 = ureport.valid_known_type("EQUAL_UREPORT_EXISTS   "
                                             "BUG_OS_MINOR_VERSION".split(" "))
 
         self.assertTrue(result)

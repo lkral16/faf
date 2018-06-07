@@ -20,10 +20,10 @@ import requests
 import json
 
 from pyfaf.actions import Action
-from pyfaf.common import FafError
 from pyfaf.problemtypes import problemtypes
 from pyfaf.storage import Symbol
 from pyfaf.queries import get_symbol_by_name_path
+from six.moves import range
 
 
 class RetraceRemote(Action):
@@ -37,7 +37,7 @@ class RetraceRemote(Action):
 
     def run(self, cmdline, db):
         if len(cmdline.problemtype) < 1:
-            ptypes = problemtypes.keys()
+            ptypes = list(problemtypes.keys())
         else:
             ptypes = cmdline.problemtype
 
@@ -91,7 +91,7 @@ class RetraceRemote(Action):
                             continue
 
                         new_db_symbols = {}
-                        for j in xrange(len(res_data)):
+                        for j in range(len(res_data)):
                             data = res_data[j]
                             if data.get("error", False):
                                 self.log_info(data["error"])

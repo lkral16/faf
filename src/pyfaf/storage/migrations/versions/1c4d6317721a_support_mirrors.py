@@ -35,18 +35,18 @@ import sqlalchemy as sa
 
 def upgrade():
     op.create_table('urls',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('url', sa.String(length=256), nullable=False),
-        sa.PrimaryKeyConstraint('id'),
-    )
+                    sa.Column('id', sa.Integer(), nullable=False),
+                    sa.Column('url', sa.String(length=256), nullable=False),
+                    sa.PrimaryKeyConstraint('id'),
+                   )
 
     op.create_table('urlrepo',
-        sa.Column('url_id', sa.Integer(), nullable=False),
-        sa.Column('repo_id', sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(['url_id'], ['urls.id'], ),
-        sa.ForeignKeyConstraint(['repo_id'], ['repo.id'], ),
-        sa.PrimaryKeyConstraint('url_id', 'repo_id'),
-    )
+                    sa.Column('url_id', sa.Integer(), nullable=False),
+                    sa.Column('repo_id', sa.Integer(), nullable=False),
+                    sa.ForeignKeyConstraint(['url_id'], ['urls.id'], ),
+                    sa.ForeignKeyConstraint(['repo_id'], ['repo.id'], ),
+                    sa.PrimaryKeyConstraint('url_id', 'repo_id'),
+                   )
 
     url_id = 1
     for repo in op.get_bind().execute("select * from repo").fetchall():
@@ -57,17 +57,17 @@ def upgrade():
 
 
 def downgrade():
-    op.add_column('repo', sa.Column('url', sa.String(length=256))) 
+    op.add_column('repo', sa.Column('url', sa.String(length=256)))
 
     for repo in op.get_bind().execute("select * from repo").fetchall():
         urls = op.get_bind().execute("select * from urlrepo r, urls u where r.repo_id = {0} and\
                 r.url_id = u.id".format(repo.id)).fetchall()
         if not urls:
-            print "Repository {0} does not have any url assigned.".format(repo.name)
+            print("Repository {0} does not have any url assigned.".format(repo.name))
             continue
         op.execute("update repo set url = '{0}' where id = {1}".format(urls[0].url, repo.id))
         for url in urls[1:]:
-            print "Skipping url {0} for repository {1}".format(url.url, repo.name)
+            print("Skipping url {0} for repository {1}".format(url.url, repo.name))
 
     op.drop_table('urlrepo')
     op.drop_table('urls')

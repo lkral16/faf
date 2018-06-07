@@ -42,7 +42,6 @@ from pyfaf.storage.opsys import (Arch,
                                  OpSysRelease,
                                  OpSysReleaseComponent)
 
-
 class TestCase(unittest.TestCase):
     """
     Class that initializes required configuration variables.
@@ -82,18 +81,18 @@ class DatabaseCase(TestCase):
         conn.set_isolation_level(0)
         cur = conn.cursor()
         try:
-                cur.execute("CREATE EXTENSION IF NOT EXISTS semver;")
+            cur.execute("CREATE EXTENSION IF NOT EXISTS semver;")
         except:
-                # older PostgreSQL doesn't support CREATE EXTENSION
-                # load semver type manually
+            # older PostgreSQL doesn't support CREATE EXTENSION
+            # load semver type manually
 
-                with open("/usr/share/pgsql/contrib/semver.sql") as f:
-                        sql = f.read()
-                        cur.execute(sql)
+            with open("/usr/share/pgsql/contrib/semver.sql") as f:
+                sql = f.read()
+                cur.execute(sql)
 
         conn.close()
 
-        config.config["storage.connectstring"] = cls.postgresql.url()
+        _set_up_db_conf(cls.postgresql)
 
         cls.dbpath = os.path.join(cls.pgdir, "data")
         cls.clean_dbpath = os.path.join(TEST_DIR, "pg_clean_data")
@@ -102,8 +101,8 @@ class DatabaseCase(TestCase):
             os.path.join(cpath, "..", "sample_reports"))
 
         cls.db = storage.Database(session_kwargs={
-                                  "autoflush": False,
-                                  "autocommit": False},
+            "autoflush": False,
+            "autocommit": False},
                                   create_schema=True)
 
     def prepare(self):
@@ -136,13 +135,13 @@ class DatabaseCase(TestCase):
             base_dir=self.pgdir,
             copy_data_from=self.clean_dbpath)
 
-        config.config["storage.connectstring"] = self.postgresql.url()
+        _set_up_db_conf(self.postgresql)
 
         # reinit DB with new version
         storage.Database.__instance__ = None
         self.db = storage.Database(session_kwargs={
-                                   "autoflush": False,
-                                   "autocommit": False})
+            "autoflush": False,
+            "autocommit": False})
 
         # required due to mixing of sqlalchemy and flask-sqlalchemy
         # fixed in flask-sqlalchemy >= 2.0
@@ -171,7 +170,7 @@ class DatabaseCase(TestCase):
         self.opsys_centos = centos_sys
 
         releases = []
-        versions = ["6.7","6.8","7.1","7.2","7.3","7.7"]
+        versions = ["6.7", "6.8", "7.1", "7.2", "7.3", "7.7"]
         for ver in versions:
             rel = OpSysRelease(opsys=centos_sys, version=ver, status="ACTIVE")
 
@@ -358,3 +357,13 @@ class FixturesCase(DatabaseCase):
         meta = storage.GenericTable.metadata
         gen = fixtures.Generator(self.db, meta)
         gen.run(dummy=True)
+
+
+def _set_up_db_conf(pg_obj):
+    params = pg_obj.dsn()
+    config.config["storage.dbuser"] = params["user"]
+    config.config["storage.dbpasswd"] = ""
+    config.config["storage.dbhost"] = params['host']
+    config.config["storage.dbport"] = params['port']
+    # from python-testing.postgresql >= 1.2 dbname is changed to database
+    config.config["storage.dbname"] = params['dbname']

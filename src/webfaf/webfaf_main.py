@@ -2,6 +2,8 @@ import os
 import logging
 from logging.handlers import SMTPHandler
 
+from ratelimitingfilter import RateLimitingFilter
+
 import flask
 import json
 import bunch
@@ -31,7 +33,7 @@ if app.config["CACHE_TYPE"].lower() == "memcached":
     flask_cache = MemcachedCache(['{0}:{1}'.format(
         app.config["MEMCACHED_HOST"],
         app.config["MEMCACHED_PORT"])],
-        key_prefix=app.config["MEMCACHED_KEY_PREFIX"])
+                                 key_prefix=app.config["MEMCACHED_KEY_PREFIX"])
 elif app.config["CACHE_TYPE"].lower() == "simple":
     from werkzeug.contrib.cache import SimpleCache
     flask_cache = SimpleCache()
@@ -43,21 +45,21 @@ if app.config["PROXY_SETUP"]:
     app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if app.config["OPENID_ENABLED"]:
-    from flask.ext.openid import OpenID
+    from flask_openid import OpenID
     from openid_teams import teams
     oid = OpenID(app, safe_roots=[], extension_responses=[teams.TeamsResponse])
-    from login import login
+    from webfaf.login import login
     app.register_blueprint(login)
 
-from dumpdirs import dumpdirs
+from webfaf.dumpdirs import dumpdirs
 app.register_blueprint(dumpdirs, url_prefix="/dumpdirs")
-from reports import reports
+from webfaf.reports import reports
 app.register_blueprint(reports, url_prefix="/reports")
-from problems import problems
+from webfaf.problems import problems
 app.register_blueprint(problems, url_prefix="/problems")
-from stats import stats
+from webfaf.stats import stats
 app.register_blueprint(stats, url_prefix="/stats")
-from summary import summary
+from webfaf.summary import summary
 app.register_blueprint(summary, url_prefix="/summary")
 
 
@@ -102,13 +104,15 @@ app.context_processor(lambda: dict(
     current_menu=LocalProxy(lambda: current_app.extensions.get(
         "menu", {"public": [], "admin": []}))))
 
-from filters import problem_label, fancydate, timestamp, memory_address
+from webfaf.filters import (problem_label, fancydate, timestamp, memory_address,
+                            readable_int)
 app.jinja_env.filters['problem_label'] = problem_label
 app.jinja_env.filters['fancydate'] = fancydate
 app.jinja_env.filters['timestamp'] = timestamp
 app.jinja_env.filters['memory_address'] = memory_address
+app.jinja_env.filters['readable_int'] = readable_int
 
-from utils import cache, fed_raw_name, WebfafJSONEncoder
+from webfaf.utils import cache, fed_raw_name, WebfafJSONEncoder
 app.json_encoder = WebfafJSONEncoder
 
 
@@ -129,9 +133,9 @@ def about():
 def component_names_json():
     sub = db.session.query(distinct(Report.component_id)).subquery()
     comps = (db.session.query(OpSysComponent.name)
-                       .filter(OpSysComponent.id.in_(sub))
-                       .distinct(OpSysComponent.name)
-                       .all())
+             .filter(OpSysComponent.id.in_(sub))
+             .distinct(OpSysComponent.name)
+             .all())
     comps = [comp[0] for comp in comps]
     return Response(response=json.dumps(comps),
                     status=200,
@@ -169,6 +173,11 @@ if not app.debug:
         'webfaf exception', credentials)
 
     mail_handler.setLevel(logging.ERROR)
+    rate_limiter = RateLimitingFilter(app.config['THROTTLING_RATE'],
+                                      app.config['THROTTLING_TIMEFRAME'],
+                                      app.config['THROTTLING_BURST'])
+
+    mail_handler.addFilter(rate_limiter)
     app.logger.addHandler(mail_handler)
 
 

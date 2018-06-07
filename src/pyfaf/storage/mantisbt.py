@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 
-from . import Boolean
 from . import Column
 from . import DateTime
 from . import Enum
@@ -63,8 +62,10 @@ class MantisBug(GenericTable):
     external_id = Column(Integer, nullable=False, index=True)
     # ID of the bug tracker
     tracker_id = Column(Integer, ForeignKey("{0}.id".format(Bugtracker.__tablename__)), nullable=False)
-    opsysrelease_id = Column(Integer, ForeignKey("{0}.id".format(OpSysRelease.__tablename__)), nullable=False, index=True)
-    component_id = Column(Integer, ForeignKey("{0}.id".format(OpSysComponent.__tablename__)), nullable=False, index=True)
+    opsysrelease_id = Column(Integer, ForeignKey("{0}.id".format(OpSysRelease.__tablename__)),
+                             nullable=False, index=True)
+    component_id = Column(Integer, ForeignKey("{0}.id".format(OpSysComponent.__tablename__)),
+                          nullable=False, index=True)
 
     tracker = relationship(Bugtracker, backref="mantis_bugs")
     opsysrelease = relationship(OpSysRelease)

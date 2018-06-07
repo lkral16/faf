@@ -19,13 +19,15 @@
 # pylint: disable=E1101
 import errno
 import os
-from pyfaf.common import FafError, log
+from pyfaf.common import FafError, log, get_connect_string, import_dir
 from pyfaf.config import config
 
 # sqlalchemy dependency is preferred to be explicit
 # also required for EL6
 import __main__
 import pkg_resources
+import six
+from six.moves import range
 __main__.__requires__ = __requires__ = []
 __requires__.append("SQLAlchemy >= 0.8.2")
 pkg_resources.require(__requires__)
@@ -65,7 +67,7 @@ class GenericTableBase(object):
         pkstr = self.pkstr()
         pkstr_long = pkstr
         while len(pkstr_long) < 5:
-            pkstr_long = "{0}{1}".format("".join(["0" for i in xrange(5 - len(pkstr_long))]), pkstr_long)
+            pkstr_long = "{0}{1}".format("".join(["0" for i in range(5 - len(pkstr_long))]), pkstr_long)
 
         lobdir = os.path.join(config["storage.lobdir"], classname, name,
                               pkstr_long[0:2], pkstr_long[2:4])
@@ -144,7 +146,7 @@ class GenericTableBase(object):
             mode += "b"
 
         with open(lobpath, mode) as lob:
-            if type(data) in [str, unicode]:
+            if isinstance(data, six.string_types):
                 self._save_lob_string(lob, data, maxlen, truncate)
             elif hasattr(data, "read"):
                 if not truncate:
@@ -167,20 +169,20 @@ GenericTable = declarative_base(cls=GenericTableBase)
 # all derived tables
 # must be ordered - the latter may require the former
 # ToDo: rewrite with import_dir
-from project import *
-from opsys import *
-from symbol import *
-from problem import *
-from bugtracker import *
-from bugzilla import *
-from mantisbt import *
-from externalfaf import *
-from report import *
-from llvm import *
-from sf_prefilter import *
-from debug import *
-from user import *
-from task import *
+from .project import *
+from .opsys import *
+from .symbol import *
+from .problem import *
+from .bugtracker import *
+from .bugzilla import *
+from .mantisbt import *
+from .externalfaf import *
+from .report import *
+from .llvm import *
+from .sf_prefilter import *
+from .debug import *
+from .user import *
+from .task import *
 
 
 def column_len(cls, name):
@@ -203,13 +205,14 @@ class Database(object):
     __version__ = 0
     __instance__ = None
 
-    def __init__(self, debug=False, dry=False, session_kwargs={"autoflush": False, "autocommit": True}, create_schema=False):
+    def __init__(self, debug=False, dry=False, session_kwargs={"autoflush": False, "autocommit": True},
+                 create_schema=False):
         if Database.__instance__ and Database.__instancecheck__(Database.__instance__):
             raise FafError("Database is a singleton and has already been instanciated. "
-                            "If you have lost the reference, you can access the object "
-                            "from Database.__instance__ .")
+                           "If you have lost the reference, you can access the object "
+                           "from Database.__instance__ .")
 
-        self._db = create_engine(config["storage.connectstring"])
+        self._db = create_engine(get_connect_string())
         self._db.echo = self._debug = debug
         self._dry = dry
         GenericTable.metadata.bind = self._db
@@ -239,7 +242,7 @@ class TemporaryDatabase(object):
 
 class DatabaseFactory(object):
     def __init__(self, autocommit=False):
-        self.engine = create_engine(config["storage.connectstring"], echo=False)
+        self.engine = create_engine(get_connect_string(), echo=False)
         self.sessionmaker = sessionmaker(bind=self.engine, autocommit=autocommit)
 
     def get_database(self):
@@ -268,9 +271,5 @@ class YieldQueryAdaptor:
         return iter(self._query.yield_per(self._yield_per))
 
 
-import events
-# Optional fedmsg-realtime plugin
-try:
-    import events_fedmsg
-except ImportError:
-    pass
+# Import all events
+import_dir(__name__, os.path.dirname(__file__), "events")

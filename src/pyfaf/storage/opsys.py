@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 
-from custom_types import Semver
+from .custom_types import Semver
 from . import Boolean
 from . import Column
 from . import DateTime
@@ -60,8 +60,7 @@ class OpSys(GenericTable):
 
     @property
     def active_releases(self):
-        return filter(lambda release: release.status == 'ACTIVE',
-                      self.releases)
+        return [release for release in self.releases if release.status == 'ACTIVE']
 
 
 class Url(GenericTable):
@@ -148,8 +147,10 @@ class OpSysReleaseComponent(GenericTable):
     __table_args__ = (UniqueConstraint('opsysreleases_id', 'components_id'),)
 
     id = Column(Integer, primary_key=True)
-    opsysreleases_id = Column(Integer, ForeignKey("{0}.id".format(OpSysRelease.__tablename__)), nullable=False, index=True)
-    components_id = Column(Integer, ForeignKey("{0}.id".format(OpSysComponent.__tablename__)), nullable=False, index=True)
+    opsysreleases_id = Column(Integer, ForeignKey("{0}.id".format(OpSysRelease.__tablename__)),
+                              nullable=False, index=True)
+    components_id = Column(Integer, ForeignKey("{0}.id".format(OpSysComponent.__tablename__)),
+                           nullable=False, index=True)
 
     release = relationship(OpSysRelease, backref="components")
     component = relationship(OpSysComponent, backref="releases")
@@ -163,14 +164,14 @@ class AssociatePeople(GenericTable):
     name = Column(String(64), nullable=False, index=True)
 
 
-class OpSysReleaseComponentAssociate(GenericTable):
-    __tablename__ = "opsysreleasescomponentsassociates"
+class OpSysComponentAssociate(GenericTable):
+    __tablename__ = "opsyscomponentsassociates"
 
-    opsysreleasecompoents_id = Column(Integer, ForeignKey("{0}.id".format(OpSysReleaseComponent.__tablename__)), primary_key=True)
+    opsyscomponent_id = Column(Integer, ForeignKey("{0}.id".format(OpSysComponent.__tablename__)), primary_key=True)
     associatepeople_id = Column(Integer, ForeignKey("{0}.id".format(AssociatePeople.__tablename__)), primary_key=True)
     permission = Column(Enum("watchbugzilla", "commit", name="permission_type"), default="commit", primary_key=True)
 
-    component = relationship(OpSysReleaseComponent, backref="associates")
+    component = relationship(OpSysComponent, backref="associates")
     associates = relationship(AssociatePeople, backref="components")
 
 
@@ -238,7 +239,8 @@ class BuildComponent(GenericTable):
     __tablename__ = "buildcomponents"
 
     build_id = Column(Integer, ForeignKey("{0}.id".format(Build.__tablename__)), nullable=False, primary_key=True)
-    component_id = Column(Integer, ForeignKey("{0}.id".format(OpSysComponent.__tablename__)), nullable=False, primary_key=True)
+    component_id = Column(Integer, ForeignKey("{0}.id".format(OpSysComponent.__tablename__)),
+                          nullable=False, primary_key=True)
 
     build = relationship(Build, backref="components")
     component = relationship(OpSysComponent, backref="builds")

@@ -2,7 +2,6 @@
 # -*- encoding: utf-8 -*-
 import os
 import logging
-import datetime
 try:
     import unittest2 as unittest
 except ImportError:
@@ -67,7 +66,8 @@ class RetraceTestCase(faftests.TestCase):
         self.assertEqual(l, 131)
 
         n, f, l = syms.pop()
-        self.assertEqual(n, "waitForMessageFilteredWithTimeout<WTF::MessageQueue<DataType>::waitForMessage() [with DataType = WTF::Function<void()>]::__lambda0>")
+        self.assertEqual(n, "waitForMessageFilteredWithTimeout<WTF::MessageQueue<DataType>::waitForMessage() "
+                         "[with DataType = WTF::Function<void()>]::__lambda0>")
         self.assertEqual(f, "Source/WTF/wtf/MessageQueue.c")
         self.assertEqual(l, 1234)
 

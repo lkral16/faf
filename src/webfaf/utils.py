@@ -17,6 +17,7 @@ from pyfaf.storage.report import (Report,
                                   ReportHistoryMonthly)
 from pyfaf.queries import user_is_maintainer
 from webfaf.webfaf_main import app
+from six.moves import range
 
 
 class Pagination(object):
@@ -32,7 +33,7 @@ class Pagination(object):
         if query_count == self.limit or query_count is None:
             self.get_args["offset"] = self.offset + self.limit
             return (url_for(self.request.endpoint,
-                            **dict(self.request.view_args.items())) +
+                            **dict(list(self.request.view_args.items()))) +
                     "?"+urlencode(self.get_args.items(multi=True)))
         else:
             return None
@@ -41,7 +42,7 @@ class Pagination(object):
         if self.offset > 0:
             self.get_args["offset"] = max(self.offset - self.limit, 0)
             return (url_for(self.request.endpoint,
-                            **dict(self.request.view_args.items())) +
+                            **dict(list(self.request.view_args.items()))) +
                     "?"+urlencode(self.get_args.items(multi=True)))
         else:
             return None
@@ -94,9 +95,9 @@ def diff(lhs_seq, rhs_seq, eq=None):
     # in case where strings are the same r has value len(right) == r_e + 1
     j = r_e
 
-    for i in xrange(l, l_e + 1):
+    for i in range(l, l_e + 1):
         pos += 1  # skip first column which is always 0
-        for j in xrange(r, r_e + 1):
+        for j in range(r, r_e + 1):
             if eq(lhs_seq[i], rhs_seq[j]):
                 res = m[pos - matrix_row_len - 1] + 1
             else:
@@ -234,7 +235,7 @@ class WebfafJSONEncoder(JSONEncoder):
                  "status": obj.status,
                  "type": obj.type,
                  "reports": obj.reports,
-                 }
+                }
             if hasattr(obj, "count"):
                 d["count"] = obj.count
             return d
@@ -247,7 +248,7 @@ class WebfafJSONEncoder(JSONEncoder):
                  "last_occurrence": obj.last_occurrence,
                  "problem_id": obj.problem_id,
                  "comments": obj.comments,
-                 }
+                }
 
             return d
         elif isinstance(obj, ReportBtFrame):
@@ -264,12 +265,12 @@ class WebfafJSONEncoder(JSONEncoder):
                  "binary_path": obj.symbolsource.path,
                  "source_path": obj.symbolsource.source_path,
                  "line_numer": obj.symbolsource.line_number,
-                 }
+                }
             return d
         elif isinstance(obj, ReportComment):
             d = {"saved": obj.saved,
                  "text": obj.text,
-                 }
+                }
             return d
         elif isinstance(obj, ReportHistoryDaily):
             return dict(date=obj.day, count=obj.count)
@@ -365,3 +366,11 @@ def cache(hours=0, minutes=0, seconds=0, logged_in_disable=False):
             return response
         return cache_func
     return cache_decorator
+
+
+def stream_template(template_name, **context):
+    app.update_template_context(context)
+    t = app.jinja_env.get_template(template_name)
+    rv = t.stream(context)
+    rv.enable_buffering(2)
+    return rv

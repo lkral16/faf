@@ -16,7 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 
-import Queue
+import sys
+if sys.version_info.major == 2:
+#Python 2
+    import Queue as queue
+else:
+#Python 3+
+    import queue
+
 import collections
 import multiprocessing
 
@@ -28,6 +35,7 @@ from pyfaf.retrace import (IncompleteTask,
                            RetraceTask,
                            RetraceWorker,
                            ssource2funcname)
+from six.moves import range
 
 class Retrace(Action):
     name = "retrace"
@@ -81,7 +89,7 @@ class Retrace(Action):
             return 1
 
         if len(cmdline.problemtype) < 1:
-            ptypes = problemtypes.keys()
+            ptypes = list(problemtypes.keys())
         else:
             ptypes = cmdline.problemtype
 
@@ -122,11 +130,11 @@ class Retrace(Action):
                     self.log_debug(str(ex))
 
             inqueue = collections.deque(tasks)
-            outqueue = Queue.Queue(cmdline.workers)
+            outqueue = queue.Queue(cmdline.workers)
             total = len(tasks)
 
             workers = [RetraceWorker(i, inqueue, outqueue)
-                       for i in xrange(cmdline.workers)]
+                       for i in range(cmdline.workers)]
 
             for worker in workers:
                 self.log_debug("Spawning {0}".format(worker.name))
@@ -138,7 +146,7 @@ class Retrace(Action):
                     wait = any(w.is_alive() for w in workers)
                     try:
                         task = outqueue.get(wait, 1)
-                    except Queue.Empty:
+                    except queue.Empty:
                         if any(w.is_alive() for w in workers):
                             continue
 

@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import division
 from datetime import datetime
 from pyfaf.actions import Action
 from pyfaf.common import FafError
@@ -25,7 +26,6 @@ from pyfaf.queries import (get_build_by_nevr,
                            get_problems,
                            get_problem_opsysrelease,
                            get_reports_for_opsysrelease,
-                           get_component_by_name,
                            get_opsys_by_name,
                            get_osrelease)
 from pyfaf.storage import ProblemOpSysRelease, Build
@@ -98,7 +98,7 @@ class MarkProbablyFixed(Action):
                 for db_release in db_opsys.releases:
                     result.add((osplugin, db_release))
 
-        return sorted(result, key=lambda (p, r): (r.opsys.name, r.version))
+        return sorted(result, key=lambda p_r: (p_r[1].opsys.name, p_r[1].version))
 
     def _save_probable_fix(self, db, problem, db_release, probable_fix,
                            probably_fixed_since=None):
@@ -250,7 +250,7 @@ class MarkProbablyFixed(Action):
 
                 probably_fixed_since = datetime.fromtimestamp(0)
 
-                pkg = affected_newest.values()[0]
+                pkg = list(affected_newest.values())[0]
 
                 name = pkg['nevr'][0]
                 newest_build = newest_builds.get(name, False)
@@ -289,7 +289,7 @@ class MarkProbablyFixed(Action):
             db.session.flush()
             if problems_in_release > 0:
                 self.log_info("{0}% of problems in this release probably fixed.".format(
-                    (probably_fixed_total * 100) / problems_in_release))
+                    (probably_fixed_total * 100) // problems_in_release))
             else:
                 self.log_info("No problems found in this release.")
 

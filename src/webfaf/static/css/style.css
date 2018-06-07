@@ -114,3 +114,89 @@ table.counts-table th:nth-child(2) { width: 150px; }
   -moz-column-count: 3; /* Firefox */
   column-count: 3;
 }
+
+li.empty-line hr {
+  margin: 0.5em 0;
+  width: 50%;
+}
+
+li.empty-line:last-child {
+  display:none;
+}
+
+.table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.col-1-of-12 {
+  width: 8%;
+}
+
+.col-2-of-12 {
+  width: 15%;
+}
+
+.col-3-of-12 {
+  width: 25%;
+}
+
+#problem-list {
+  min-width: 1100px;
+  max-width: 1400px;
+}
+
+.dataTables_filter {
+  float: left;
+  margin-left: 5px;
+}
+
+.dataTables_filter label input {
+  margin-left: 8px;
+}
+
+.dataTables_length {
+  float: right;
+}
+
+.paginate_button.current {
+  color: #00618a;
+}
+
+#archive-btn {
+  margin-left: 20px;
+  float: right;
+}
+
+#archive-data {
+  margin-top: 6px;
+  overflow: auto;
+}
+
+.inactive-link {
+  pointer-events: none;
+  cursor: default;
+}
+
+.well-muted {
+  min-height: 20px;
+  padding: 19px;
+  margin-bottom: 20px;
+  border: 1px solid #e3e3e3;
+  border-radius: 1px;
+  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+#components-reassign {
+  visibility: hidden;
+}
+
+#comp-assign-info {
+  margin-left: 70px;
+}
+
+#collapse-btn {
+  text-decoration: none;
+  cursor: pointer;
+}

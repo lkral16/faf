@@ -20,11 +20,14 @@ versions_PYTHON = \
     5695a1c595c3_reportreleasedesktops.py \
     13557f1962e6_ureport_added_certainty.py \
     58f44afc3a3a_drop_running_package_from_reportpackages.py \
+    71905f91e7b7_add_archived_reports.py \
     7fa8b3134f0_probable_fix_by_opsy.py \
     82081a3c76b_rename_kb_to_sf_prefilter.py \
     cef2fcd69ef_celery_tasks.py \
     89d35a57f82b_add_new_value_to_repo_types_enum.py \
-    acd3d9bf85d1_ignore_private_bz.py
+    9301a426f19d_associates_to_opsys.py \
+    acd3d9bf85d1_ignore_private_bz.py \
+    f43edd5b636d_enable_problem_components_reassign.py
 
 
 versionsdir = $(pythondir)/pyfaf/storage/migrations/versions

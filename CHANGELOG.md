@@ -4,6 +4,30 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2018-04-19
+### Changed
+- Import all storage events
+- Pull releases and components from PDC
+- Pull acls from Pagure
+- Do not show any problems when querying unknown component
+
+### Added
+- Limit the number of exception mails
+- First version of making code Python3 compatible
+
+## [1.3.0] - 2018-03-05
+### Changed
+- Accept kerneloops without addresses
+- Always check validity of ureport
+- Order external urls by incoming time
+- Improve and update specfile
+- Split docker into FAF and DB
+
+### Added
+- Enable setting DB parameters with ENV arguments
+- Introduce docker DB image
+- Introduce OpenShift templates
+
 ## [1.2.1] - 2017-10-25
 ### Changed
 - Update to new bugzilla
@@ -65,7 +89,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Complete rewrite of core and web parts of faf
 
-[Unreleased]: https://github.com/abrt/faf/compare/1.2.1...HEAD
+[Unreleased]: https://github.com/abrt/faf/compare/1.3.1...HEAD
+[1.3.1]: https://github.com/abrt/faf/compare/1.3.0...1.3.1
+[1.3.0]: https://github.com/abrt/faf/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/abrt/faf/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/abrt/faf/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/abrt/faf/compare/1.0.0...1.1.0

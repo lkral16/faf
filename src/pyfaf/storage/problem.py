@@ -22,10 +22,25 @@ from . import DateTime
 from . import ForeignKey
 from . import GenericTable
 from . import Integer
+from . import String
+from . import Date
 from . import OpSysComponent, OpSysRelease
 from . import relationship, backref
 
+from pyfaf.storage.user import User
 from pyfaf.utils.storage import most_common_crash_function
+
+
+class ProblemReassign(GenericTable):
+    __tablename__ = "problemreassign"
+    id = Column(Integer, primary_key=True)
+    date = Column(Date, nullable=False)
+    problem_id = Column(Integer, ForeignKey("problems.id"), nullable=False, index=True)
+    username = Column(String(100), ForeignKey("{0}.username".format(
+        User.__tablename__, nullable=False)))
+    problem=relationship("Problem", backref=backref("components_reassign",
+                                                    uselist=False))
+    user=relationship(User, backref="components_reassign")
 
 
 class ProblemComponent(GenericTable):
@@ -96,7 +111,7 @@ class Problem(GenericTable):
 
     @property
     def reports_count(self):
-        return sum(map(lambda x: x.count, self.reports))
+        return sum([x.count for x in self.reports])
 
     @property
     def quality(self):
@@ -119,11 +134,25 @@ class Problem(GenericTable):
         return sorted(self.reports, key=lambda r: r.quality, reverse=True)
 
     @property
+    def active_reports(self):
+        '''
+        List of all non archived reports
+        '''
+        return [r for r in self.reports if not r.archived]
+
+    @property
+    def archived_reports(self):
+        '''
+        List of archived reports
+        '''
+        return [r for r in self.reports if r.archived]
+
+    @property
     def backtraces(self):
         '''
         List of all backtraces assigned to this problem.
         '''
-        return sum(map(lambda x: x.backtraces, self.reports), [])
+        return sum([x.backtraces for x in self.reports], [])
 
     @property
     def sorted_backtraces(self):
@@ -180,7 +209,7 @@ class Problem(GenericTable):
         return ["{0}: {1}, {2}".format(
             osr.opsysrelease, osr.probable_fix,
             osr.probably_fixed_since.strftime("%Y-%m-%d"))
-            for osr in self.opsysreleases if osr.probable_fix]
+                for osr in self.opsysreleases if osr.probable_fix]
 
     def probable_fix_for_opsysrelease_ids(self, osr_ids):
         if len(osr_ids) == 1:
@@ -196,10 +225,11 @@ class Problem(GenericTable):
     @property
     def urls(self):
         """
-        List of all ReportURLs assigned to this problem.
+        List of list of all ReportURLs assigned to this problem.
         """
-
-        return sum(map(lambda x: x.urls, self.reports), [])
+        urls = [x for x in [x.urls for x in self.reports] if x]
+        urls.sort(key=lambda x: x[0].saved, reverse=True)
+        return urls
 
 
 class ProblemOpSysRelease(GenericTable):

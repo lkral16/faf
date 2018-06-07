@@ -19,8 +19,7 @@ from pyfaf.storage import (AssociatePeople,
                            OpSys,
                            OpSysComponent,
                            OpSysRelease,
-                           OpSysReleaseComponent,
-                           OpSysReleaseComponentAssociate,
+                           OpSysComponentAssociate,
                            Package,
                            ReportHash,
                            ReportBz,
@@ -34,11 +33,12 @@ from pyfaf.storage import (AssociatePeople,
                            ReportHistoryMonthly,
                            ReportUnknownPackage,
                            ReportBacktrace,
+                           ReportArchive,
                            ReportExecutable,
                            UnknownOpSys,
                            ProblemOpSysRelease,
                            Problem,
-                           )
+                          )
 from pyfaf.queries import (get_report,
                            get_unknown_opsys,
                            get_bz_bug,
@@ -46,7 +46,7 @@ from pyfaf.queries import (get_report,
                            get_report_opsysrelease,
                            get_crashed_package_for_report,
                            get_crashed_unknown_package_nevr_for_report
-                           )
+                          )
 from pyfaf import ureport
 from pyfaf.opsys import systems
 from pyfaf.bugtrackers import bugtrackers
@@ -59,50 +59,41 @@ from pyfaf import queries
 from flask import (Blueprint, render_template, request, abort, redirect,
                    url_for, flash, jsonify, g)
 from sqlalchemy import literal, desc, or_
-from utils import (Pagination,
-                   diff as seq_diff,
-                   InvalidUsage,
-                   metric,
-                   request_wants_json,
-                   is_component_maintainer)
+from sqlalchemy.exc import SQLAlchemyError
+from webfaf.utils import (Pagination,
+                          diff as seq_diff,
+                          InvalidUsage,
+                          metric,
+                          request_wants_json,
+                          is_component_maintainer)
 
 
 reports = Blueprint("reports", __name__)
 
-from webfaf_main import db, flask_cache
-from forms import (ReportFilterForm, NewReportForm, NewAttachmentForm,
-                   component_names_to_ids, AssociateBzForm)
+from webfaf.webfaf_main import db, flask_cache
+from webfaf.forms import (ReportFilterForm, NewReportForm, NewAttachmentForm,
+                          component_names_to_ids, AssociateBzForm)
 
 
 def query_reports(db, opsysrelease_ids=[], component_ids=[],
                   associate_id=None, arch_ids=[], types=[],
-                  first_occurrence_since=None, first_occurrence_to=None,
-                  last_occurrence_since=None, last_occurrence_to=None,
+                  occurrence_since=None, occurrence_to=None,
                   limit=None, offset=None, order_by="last_occurrence",
                   solution=None):
 
     comp_query = (db.session.query(Report.id.label("report_id"),
                                    OpSysComponent.name.label("component"))
-                    .join(ReportOpSysRelease)
-                    .join(OpSysComponent)
-                    .distinct(Report.id)).subquery()
+                  .join(ReportOpSysRelease)
+                  .join(OpSysComponent)
+                  .distinct(Report.id)).subquery()
 
     bt_query = (db.session.query(Report.id.label("report_id"),
                                  ReportBacktrace.crashfn.label("crashfn"))
-                          .join(ReportBacktrace)
-                          .distinct(Report.id)
-                          .subquery())
+                .join(ReportBacktrace)
+                .distinct(Report.id)
+                .subquery())
 
-    final_query = (db.session.query(Report.id,
-                                    Report.first_occurrence.label(
-                                        "first_occurrence"),
-                                    Report.last_occurrence.label(
-                                        "last_occurrence"),
-                                    comp_query.c.component,
-                                    Report.type,
-                                    Report.count.label("count"),
-                                    Report.problem_id,
-                                    bt_query.c.crashfn)
+    final_query = (db.session.query(Report, bt_query.c.crashfn)
                    .join(comp_query, Report.id == comp_query.c.report_id)
                    .join(bt_query, Report.id == bt_query.c.report_id)
                    .order_by(desc(order_by)))
@@ -121,19 +112,19 @@ def query_reports(db, opsysrelease_ids=[], component_ids=[],
 
     if arch_ids:
         arch_query = (db.session.query(ReportArch.report_id.label("report_id"))
-                        .filter(ReportArch.arch_id.in_(arch_ids))
-                        .distinct(ReportArch.report_id)
-                        .subquery())
+                      .filter(ReportArch.arch_id.in_(arch_ids))
+                      .distinct(ReportArch.report_id)
+                      .subquery())
         final_query = final_query.filter(Report.id == arch_query.c.report_id)
 
     if associate_id:
         assoc_query = (
             db.session.query(
-                OpSysReleaseComponent.components_id.label("components_id"))
-            .join(OpSysReleaseComponentAssociate)
-            .filter(OpSysReleaseComponentAssociate.associatepeople_id ==
+                OpSysComponent.id.label("components_id"))
+            .join(OpSysComponentAssociate)
+            .filter(OpSysComponentAssociate.associatepeople_id ==
                     associate_id)
-            .distinct(OpSysReleaseComponent.components_id)
+            .distinct(OpSysComponent.id)
             .subquery())
 
         final_query = final_query.filter(
@@ -142,19 +133,12 @@ def query_reports(db, opsysrelease_ids=[], component_ids=[],
     if types:
         final_query = final_query.filter(Report.type.in_(types))
 
-    if first_occurrence_since:
+    if occurrence_since:
         final_query = final_query.filter(
-            Report.first_occurrence >= first_occurrence_since)
-    if first_occurrence_to:
+            Report.last_occurrence >= occurrence_since)
+    if occurrence_to:
         final_query = final_query.filter(
-            Report.first_occurrence <= first_occurrence_to)
-
-    if last_occurrence_since:
-        final_query = final_query.filter(
-            Report.last_occurrence >= last_occurrence_since)
-    if last_occurrence_to:
-        final_query = final_query.filter(
-            Report.last_occurrence <= last_occurrence_to)
+            Report.first_occurrence <= occurrence_to)
 
     if solution:
         if not solution.data:
@@ -165,7 +149,11 @@ def query_reports(db, opsysrelease_ids=[], component_ids=[],
     if offset >= 0:
         final_query = final_query.offset(offset)
 
-    return final_query.all()
+    report_tuples = final_query.all()
+    for report, crashfn in report_tuples:
+        report.crashfn = crashfn
+
+    return [x[0] for x in report_tuples]
 
 
 def get_reports(filter_form, pagination):
@@ -181,6 +169,11 @@ def get_reports(filter_form, pagination):
     arch_ids = [arch.id for arch in (filter_form.arch.data or [])]
 
     types = filter_form.type.data or []
+    if filter_form.daterange.data:
+        (since_date, to_date) = filter_form.daterange.data
+    else:
+        since_date = None
+        to_date = None
 
     r = query_reports(
         db,
@@ -189,14 +182,8 @@ def get_reports(filter_form, pagination):
         associate_id=associate_id,
         arch_ids=arch_ids,
         types=types,
-        first_occurrence_since=filter_form.first_occurrence_daterange.data
-        and filter_form.first_occurrence_daterange.data[0],
-        first_occurrence_to=filter_form.first_occurrence_daterange.data
-        and filter_form.first_occurrence_daterange.data[1],
-        last_occurrence_since=filter_form.last_occurrence_daterange.data
-        and filter_form.last_occurrence_daterange.data[0],
-        last_occurrence_to=filter_form.last_occurrence_daterange.data
-        and filter_form.last_occurrence_daterange.data[1],
+        occurrence_since=since_date,
+        occurrence_to=to_date,
         limit=pagination.limit,
         offset=pagination.offset,
         order_by=filter_form.order_by.data,
@@ -312,9 +299,9 @@ def items():
 
     for report_hash in post_data:
         report = (db.session.query(Report)
-                    .join(ReportHash)
-                    .filter(ReportHash.hash == report_hash)
-                    .first())
+                  .join(ReportHash)
+                  .filter(ReportHash.hash == report_hash)
+                  .first())
 
         if report is not None:
             data[report_hash] = item(report.id, True)
@@ -379,7 +366,7 @@ def item(report_id, want_object=False):
     executable = (db.session.query(ReportExecutable.path)
                   .filter(ReportExecutable.report_id == report_id)
                   .first())
-    if (executable):
+    if executable:
         executable = executable[0]
     else:
         executable = "unknown"
@@ -434,13 +421,13 @@ def item(report_id, want_object=False):
             daily_history.append({'day': today,
                                   'count': 0,
                                   'opsysrelease_id': releases[0].ReportOpSysRelease.opsysrelease_id
-                                  })
+                                 })
 
         if daily_history[0].day > (today - timedelta(MAX_DAYS)):
             daily_history.append({'day': today - timedelta(MAX_DAYS),
                                   'count': 0,
                                   'opsysrelease_id': releases[0].ReportOpSysRelease.opsysrelease_id
-                                  })
+                                 })
 
     # Show only 20 weeks
     last_monday = datetime.datetime.today() - timedelta(datetime.datetime.today().weekday())
@@ -474,22 +461,22 @@ def item(report_id, want_object=False):
     if len(monthly_history) == 0:
         for x in range(0, MAX_MONTH):
             monthly_history.append({'month': fdom - relativedelta(months=x),
-                                   'count': 0,
-                                   'opsysrelease_id': releases[0].ReportOpSysRelease.opsysrelease_id})
+                                    'count': 0,
+                                    'opsysrelease_id': releases[0].ReportOpSysRelease.opsysrelease_id})
 
     elif len(monthly_history) < MAX_MONTH:
         if monthly_history[-1].month < (fdom):
             monthly_history.append({'month': fdom,
-                                   'count': 0,
-                                   'opsysrelease_id': releases[0].ReportOpSysRelease.opsysrelease_id})
+                                    'count': 0,
+                                    'opsysrelease_id': releases[0].ReportOpSysRelease.opsysrelease_id})
 
         if monthly_history[0].month > (fdom - relativedelta(months=MAX_MONTH)):
             monthly_history.append({'month': fdom - relativedelta(months=MAX_MONTH),
-                                   'count': 0,
-                                   'opsysrelease_id': releases[0].ReportOpSysRelease.opsysrelease_id})
+                                    'count': 0,
+                                    'opsysrelease_id': releases[0].ReportOpSysRelease.opsysrelease_id})
 
     complete_history = history_select(ReportHistoryMonthly, ReportHistoryMonthly.month,
-                                    (datetime.datetime.strptime('1970-01-01', '%Y-%m-%d')))
+                                      (datetime.datetime.strptime('1970-01-01', '%Y-%m-%d')))
 
     unique_ocurrence_os = {}
     if len(complete_history) > 0:
@@ -519,7 +506,7 @@ def item(report_id, want_object=False):
         names[pkg.iname]["name"] = pkg.iname
         names[pkg.iname]["count"] += pkg.count
         names[pkg.iname]["versions"]["{0}:{1}-{2}"
-            .format(pkg.iepoch, pkg.iversion, pkg.irelease)] += pkg.count
+                                     .format(pkg.iepoch, pkg.iversion, pkg.irelease)] += pkg.count
 
     package_counts = []
     for pkg in sorted(names.values(), key=itemgetter("count"), reverse=True):
@@ -544,14 +531,13 @@ def item(report_id, want_object=False):
     if is_maintainer:
         contact_emails = [email_address for (email_address, ) in
                           (db.session.query(ContactEmail.email_address)
-                                .join(ReportContactEmail)
-                                .filter(ReportContactEmail.report == report))]
+                           .join(ReportContactEmail)
+                           .filter(ReportContactEmail.report == report))]
 
     maintainer = (db.session.query(AssociatePeople)
-                        .join(OpSysReleaseComponentAssociate)
-                        .join(OpSysReleaseComponent)
-                        .join(OpSysComponent)
-                        .filter(OpSysComponent.name == component.name)).first()
+                  .join(OpSysComponentAssociate)
+                  .join(OpSysComponent)
+                  .filter(OpSysComponent.name == component.name)).first()
 
     maintainer_contact = ""
     if maintainer:
@@ -606,8 +592,8 @@ def item(report_id, want_object=False):
             forward['probably_fixed'] = tmp_dict
         # Avg count occurrence from first to last occurence
         forward['avg_count_per_month'] = get_avg_count(report.first_occurrence,
-                                                           report.last_occurrence,
-                                                           report.count)
+                                                       report.last_occurrence,
+                                                       report.count)
 
         if len(forward['report'].bugs) > 0:
             forward['bugs'] = []
@@ -615,7 +601,7 @@ def item(report_id, want_object=False):
                 try:
                     forward['bugs'].append(bug.serialize)
                 except:
-                    print "Bug serialize failed"
+                    print("Bug serialize failed")
         return forward
 
     if request_wants_json():
@@ -691,7 +677,7 @@ def associate_bug(report_id):
                               report.crash_function,
                               ",".join(exe.path for exe in report.executables),
                               report.errname
-                              ),
+                             ),
         "comment": "This bug has been created based on an anonymous crash "
                    "report requested by the package maintainer.\n\n"
                    "Report URL: {0}"
@@ -715,9 +701,9 @@ def associate_bug(report_id):
                     ("{0} {1} in {2}".format(osr.opsys.name, osr.version,
                                              bugtracker),
                      "{0}?{1}".format(
-                        bugtrackers[bugtracker].new_bug_url,
-                        urllib.urlencode(params))
-                     )
+                         bugtrackers[bugtracker].new_bug_url,
+                         urllib.urlencode(params))
+                    )
                 )
             except:
                 pass
@@ -734,12 +720,12 @@ def diff():
     rhs_id = int(request.args.get('rhs', 0))
 
     lhs = (db.session.query(Report)
-                     .filter(Report.id == lhs_id)
-                     .first())
+           .filter(Report.id == lhs_id)
+           .first())
 
     rhs = (db.session.query(Report)
-                     .filter(Report.id == rhs_id)
-                     .first())
+           .filter(Report.id == rhs_id)
+           .first())
 
     if lhs is None or rhs is None:
         abort(404)
@@ -832,7 +818,7 @@ def new():
                         data["os"]["name"] not in systems and
                         data["os"]["name"].lower() not in systems):
                     _save_unknown_opsys(db, data["os"])
-                if (str(exp) == 'uReport must contain affected package'):
+                if str(exp) == 'uReport must contain affected package':
                     raise InvalidUsage(("Server is not accepting problems "
                                         "from unpackaged files."), 400)
                 raise InvalidUsage("uReport data is invalid.", 400)
@@ -917,10 +903,10 @@ def new():
                               "type": "url"}]
 
                     bugs = (db.session.query(BzBug)
-                                      .join(ReportBz)
-                                      .filter(ReportBz.bzbug_id == BzBug.id)
-                                      .filter(ReportBz.report_id == dbreport.id)
-                                      .all())
+                            .join(ReportBz)
+                            .filter(ReportBz.bzbug_id == BzBug.id)
+                            .filter(ReportBz.report_id == dbreport.id)
+                            .all())
                     for bug in bugs:
                         parts.append({"reporter": "Bugzilla",
                                       "value": bug.url,
@@ -1013,6 +999,36 @@ def attach():
 
     return render_template("reports/attach.html",
                            form=form)
+
+
+@reports.route("/<int:report_id>/archive.json", methods=["POST"])
+def archive(report_id):
+    data = request.get_json()
+    response = {"status": "success",
+                "username": g.user.username,
+                "date": datetime.date.today()}
+    try:
+        report = db.session.query(Report).filter_by(id=report_id).first()
+        if data["activate"]:
+            if report.archive:
+                report.archive.active = True
+                report.archive.date = response["date"]
+                report.archive.username = response["username"]
+            else:
+                db.session.add(ReportArchive(date=response["date"],
+                                             active=True,
+                                             report_id=report_id,
+                                             username=response["username"]))
+            db.session.commit()
+        else:
+            if report.archive:
+                report.archive.active = False
+                db.session.commit()
+    except SQLAlchemyError:
+        response["status"] = "failure"
+
+    return jsonify(response)
+
 
 def get_avg_count(first, last, count):
     diff = last - first

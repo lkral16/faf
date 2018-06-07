@@ -18,7 +18,14 @@
 
 from __future__ import unicode_literals
 
-import cPickle as pickle
+import sys
+if sys.version_info.major == 2:
+#Python 2
+    import cPickle as pickle
+else:
+#Python 3+
+    import pickle
+
 import os
 import shutil
 import satyr
@@ -30,11 +37,9 @@ from pyfaf.checker import (Checker,
                            StringChecker)
 from pyfaf.common import FafError, log
 from pyfaf.queries import (get_archs,
-                           get_backtrace_by_hash,
                            get_kernelmodule_by_name,
                            get_package_by_name_build_arch,
                            get_package_by_nevra,
-                           get_src_package_by_build,
                            get_ssource_by_bpo,
                            get_symbol_by_name_path,
                            get_taint_flag_by_ureport_name)
@@ -94,7 +99,7 @@ class KerneloopsProblem(ProblemType):
                                      maxlen=column_len(SymbolSource,
                                                        "build_id")),
 
-        "taint_flags": ListChecker(StringChecker(allowed=tainted_flags.keys())),
+        "taint_flags": ListChecker(StringChecker(allowed=list(tainted_flags.keys()))),
 
         "modules":     ListChecker(StringChecker(pattern=r"^[a-zA-Z0-9_]+(\([A-Z\+\-]+\))?$",
                                                  maxlen=column_len(KernelModule,
@@ -172,7 +177,7 @@ class KerneloopsProblem(ProblemType):
             taintflags = []
 
         if skip_unreliable:
-            frames = filter(lambda f: f["reliable"], koops)
+            frames = [f for f in koops if f["reliable"]]
         else:
             frames = koops
 

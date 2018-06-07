@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FAF - {% block title %}{% endblock title %}</title>
-
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/hicolor_apps_16x16_abrt.png')}}" sizes="16x16">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/hicolor_apps_32x32_abrt.png')}}" sizes="32x32">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/patternfly.css')}}">
     
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-multiselect.css')}}">
@@ -17,6 +18,7 @@
       ROOT_URL = "{{url_for('root')}}";
     </script>
     <script src="{{ url_for('static', filename='js/jquery.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.dataTables.js')}}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap.js')}}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap-multiselect.js')}}"></script>
     <script src="{{ url_for('static', filename='js/moment.js')}}"></script>
@@ -24,6 +26,7 @@
     <script src="{{ url_for('static', filename='js/bootstrap-tagsinput.js')}}"></script>
     <script src="{{ url_for('static', filename='js/typeahead.bundle.js')}}"></script>
     <script src="{{ url_for('static', filename='js/custom.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/redirect.js')}}"></script>
     {% block js %}
     {% endblock js %}
   </head>
@@ -65,6 +68,7 @@
             </ul>
             {% if config['OPENID_ENABLED'] %}
               <ul class="nav navbar-nav navbar-utility">
+                  <li><a href="https://apps.fedoraproject.org/notifications" class="fa fa-bell notifications" title="Notifications preferences"></a></li>
                 {% if g.user %}
                   <li><a href="{{ url_for('login.do_logout') }}">Logout {{ g.user.username }}</a></li>
                 {% else %}

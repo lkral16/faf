@@ -31,7 +31,8 @@ __all__ = ["FafError",
            "load_plugins",
            "load_plugin_types",
            "log",
-           ]
+           "get_connect_string",
+          ]
 
 RE_PLUGIN_NAME = re.compile(r"^[a-zA-Z0-9\-]+$")
 
@@ -91,7 +92,7 @@ log = logging.getLogger(name="faf")
 # pylint: enable-msg=C0103
 
 
-def import_dir(module, dirname):
+def import_dir(module, dirname, prefix=None):
     """
     Imports python files from `dirname` into `module`.
     Ignores files whose name starts with underscore.
@@ -101,6 +102,8 @@ def import_dir(module, dirname):
         if not filename.endswith(".py"):
             continue
         if filename.startswith("_"):
+            continue
+        if prefix and not filename.startswith(prefix):
             continue
 
         plugin = "{0}.{1}".format(module, filename[:-3])
@@ -222,6 +225,39 @@ def get_temp_dir(subdir=None):
         return os.path.join(basetmp, userdir)
 
     return os.path.join(basetmp, userdir, subdir)
+
+
+def _get_env_or_config(conf_s, env_s, default):
+    found = os.environ.get(env_s, None)
+    if not found:
+        found = config.get(conf_s, None)
+        if not found:
+            found = default
+    return found
+
+
+def get_connect_string():
+    """Create connection string for database from config file."""
+    login = ""
+    user = _get_env_or_config("storage.dbuser", "PGUSER", "")
+    passwd = _get_env_or_config("storage.dbpasswd", "PGPASSWORD", "")
+    # password without user does not make sense
+    if user:
+        if passwd:
+            login = user + ":" + passwd
+        else:
+            login = user
+
+    host = _get_env_or_config("storage.dbhost", "PGHOST", "")
+    port = _get_env_or_config("storage.dbport", "PGPORT", "")
+    # port without host does not make sense
+    if host:
+        if port:
+            login = login + "@" + host + ":" + str(port)
+        else:
+            login = login + "@" + host
+
+    return "postgresql://" + login + "/" + _get_env_or_config("storage.dbname", "PGDATABASE", "")
 
 
 class FafError(Exception):

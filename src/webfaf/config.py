@@ -1,8 +1,9 @@
 import os
 from sqlalchemy.engine.url import _parse_rfc1738_args
 from pyfaf.config import config, paths
+from pyfaf.common import get_connect_string
 from pyfaf.utils.parse import str2bool
-dburl = _parse_rfc1738_args(config["storage.connectstring"])
+dburl = _parse_rfc1738_args(get_connect_string())
 
 WEBFAF_DIR = os.path.dirname(__file__)
 
@@ -14,8 +15,7 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = dburl
     OPENID_ENABLED = str2bool(config.get("openid.enabled", "false"))
     OPENID_FS_STORE = os.path.join(paths["spool"], "openid_store")
-    OPENID_PRIVILEGED_TEAMS = map(lambda s: s.strip(),
-                                  config.get("openid.privileged_teams", "").split(","))
+    OPENID_PRIVILEGED_TEAMS = [s.strip() for s in config.get("openid.privileged_teams", "").split(",")]
     PROXY_SETUP = False
     MAX_CONTENT_LENGTH = int(config["dumpdir.maxdumpdirsize"])
     RSTPAGES_SRC = os.path.join(WEBFAF_DIR, "templates")
@@ -36,6 +36,9 @@ class Config(object):
     EVERYONE_IS_ADMIN = str2bool(config.get("hub.everyone_is_admin", "false"))
     FEDMENU_URL = config.get("hub.fedmenu_url", None)
     FEDMENU_DATA_URL = config.get("hub.fedmenu_data_url", None)
+    THROTTLING_RATE = config.get("throttle.rate", 1)
+    THROTTLING_TIMEFRAME = config.get("throttle.timeframe", 30)
+    THROTTLING_BURST = config.get("throttle.burst", 1)
 
 
 class ProductionConfig(Config):

@@ -18,8 +18,9 @@
 from __future__ import absolute_import
 
 from datetime import datetime
-import pkgdb2client
 import koji
+import json
+import urllib
 from pyfaf.opsys import System
 from pyfaf.checker import DictChecker, IntChecker, ListChecker, StringChecker
 from pyfaf.common import FafError, log
@@ -39,6 +40,8 @@ from pyfaf.storage import (Arch,
                            ReportUnknownPackage,
                            column_len)
 from pyfaf.utils.parse import str2bool
+import six
+
 
 __all__ = ["Fedora"]
 
@@ -98,11 +101,10 @@ class Fedora(System):
 
         self.load_config_to_self("eol", ["fedora.supporteol"],
                                  False, callback=str2bool)
-        self.load_config_to_self("pkgdb_url", ["fedora.pkgdburl"],
-                                 "https://admin.fedoraproject.org/pkgdb/")
-
-        self._pkgdb = pkgdb2client.PkgDB(url=self.pkgdb_url)
-
+        self.load_config_to_self("pdc_url", ["fedora.fedorapdc"],
+                                 "https://pdc.fedoraproject.org/rest_api/v1/")
+        self.load_config_to_self("pagure_url", ["fedora.pagureapi"],
+                                 "https://src.fedoraproject.org/api/0/")
         self.load_config_to_self("build_aging_days",
                                  ["fedora.build-aging-days"],
                                  7, callback=int)
@@ -181,11 +183,11 @@ class Fedora(System):
         affected = False
         Fedora.packages_checker.check(packages)
         for package in packages:
-            if ("package_role" in package):
-                if (package["package_role"] not in Fedora.pkg_roles):
+            if "package_role" in package:
+                if package["package_role"] not in Fedora.pkg_roles:
                     raise FafError("Only the following package roles are allowed: "
                                    "{0}".format(", ".join(Fedora.pkg_roles)))
-                if (package["package_role"] == "affected"):
+                if package["package_role"] == "affected":
                     affected = True
 
         if not (affected or self.allow_unpackaged):
@@ -220,74 +222,67 @@ class Fedora(System):
 
     def get_releases(self):
         result = {}
-        collections = self._pkgdb.get_collections()["collections"]
+        # Page size -1 means, that all results are on one page
+        url = self.pdc_url + "releases/?page_size=-1"
 
-        for collection in collections:
-            # there is EPEL in collections, we are only interested in Fedora
-            if collection["name"].lower() != Fedora.name:
+        response = json.load(urllib.urlopen(url))
+        for release in response:
+            if release["short"] != Fedora.name:
                 continue
 
-            # "devel" is called "rawhide" on all other places
-            if collection["version"].lower() == "devel":
-                collection["version"] = "rawhide"
+            ver = release["version"].lower()
 
-            result[collection["version"]] = {
-                "status": collection["status"].upper().replace(' ', '_'),
-                "kojitag": collection["koji_name"],
-                "shortname": collection["branchname"],
+            if "epel" in ver:
+                continue
+
+            result[ver] = {
+                "status": "ACTIVE" if release["active"] else "EOL",  # Other states are missing
+                "shortname": "f{0}".format(ver) if ver.isdigit() else
+                             "master" if ver == "rawhide" else ver
             }
 
         return result
 
     def get_components(self, release):
-        branch = self._release_to_pkgdb_branch(release)
+        branch = self._release_to_branch(release)
 
-        try:
-            pkgs = self._pkgdb.get_packages(branches=branch, page='all',
-                                            eol=self.eol)
-        except pkgdb2client.PkgDBException as e:
-            raise FafError("Unable to get components for {0}, error was: {1}"
-                           .format(release, e))
+        result = []
+        url = self.pdc_url + "component-branches/"
+        url += "?name={0}&page_size=-1&fields=global_component&type=rpm".format(branch)
 
-        return [pkg["name"] for pkg in pkgs["packages"]]
+        response = json.load(urllib.urlopen(url))
+        for item in response:
+            result.append(item["global_component"])
 
-    def get_component_acls(self, component, release=None):
-        branch = None
-        if release:
-            branch = self._release_to_pkgdb_branch(release)
+        return result
 
+    def get_component_acls(self, component):
         result = {}
+        url = self.pagure_url + "/rpms/{0}".format(component)
 
-        try:
-            packages = self._pkgdb.get_package(component, branches=branch,
-                                               eol=self.eol)
-        except pkgdb2client.PkgDBException as e:
+        response = json.load(urllib.urlopen(url))
+        if "error" in response:
             self.log_error("Unable to get package information for component"
-                           " {0}, error was: {1}".format(component, e))
+                           " {0}, error was: {1}".format(component, response["error"]))
             return result
 
-        for pkg in packages["packages"]:
-            acls = {pkg["point_of_contact"]: {"owner": True, }, }
+        for user_g in response["access_users"]:
+            for user in response["access_users"][user_g]:
+                result[user] = {"commit": True, "watchbugzilla": False}
 
-            if not "acls" in pkg:
-                continue
+        # Check for watchers
+        url += "/watchers"
+        response = json.load(urllib.urlopen(url))
+        if "error" in response:
+            self.log_error("Unable to get package information for component"
+                           " {0}, error was: {1}".format(component, response["error"]))
+            return result
 
-            for acl in pkg["acls"]:
-                aclname = acl["acl"]
-                person = acl["fas_name"]
-                status = acl["status"] == "Approved"
-
-                if person in acls:
-                    acls[person][aclname] = status
-                else:
-                    acls[person] = {aclname: status}
-
-            if release:
-                return acls
-
-            branch = pkg["branchname"]
-            relname = self._pkgdb_branch_to_release(branch)
-            result[relname] = acls
+        for user in response["watchers"]:
+            if user in result.keys():
+                result[user]["watchbugzilla"] = True
+            else:
+                result[user] = {"commit": False, "watchbugzilla": True}
 
         return result
 
@@ -313,15 +308,15 @@ class Fedora(System):
 
         return False
 
-    def _release_to_pkgdb_branch(self, release):
+    def _release_to_branch(self, release):
         """
-        Convert faf's release to pkgdb2 branch name
+        Convert faf's release to branch name
         """
 
-        if not isinstance(release, basestring):
+        if not isinstance(release, six.string_types):
             release = str(release)
 
-        # "rawhide" is called "master" in pkgdb2
+        # "rawhide" is called "master"
         if release.lower() == "rawhide":
             branch = "master"
         elif release.isdigit():
@@ -336,22 +331,6 @@ class Fedora(System):
             raise FafError("{0} is not a valid Fedora version")
 
         return branch
-
-    def _pkgdb_branch_to_release(self, branch):
-        """
-        Convert pkgdb2 branch name to faf's release
-        """
-
-        if branch == "master":
-            return "rawhide"
-
-        if branch.startswith("fc"):
-            return branch[2:]
-
-        if branch.startswith("FC-"):
-            return branch[3:]
-
-        return branch[1:]
 
     def get_released_builds(self, release):
         session = koji.ClientSession(self.koji_url)

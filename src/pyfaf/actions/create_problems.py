@@ -30,7 +30,8 @@ from pyfaf.queries import (get_problems,
                            get_reports_for_problems,
                            get_unassigned_reports,
                            get_problem_by_id)
-from pyfaf.storage import Problem, ProblemComponent, Report
+from pyfaf.storage import Problem, ProblemComponent
+import six
 
 
 class HashableSet(set):
@@ -155,7 +156,7 @@ class CreateProblems(Action):
         clusters = []
         processed = set()
         # Only unique and longer than 1 clusters are returned
-        for threads in thread_map.itervalues():
+        for threads in six.itervalues(thread_map):
             if threads in processed or len(threads) < 2:
                 continue
 
@@ -347,7 +348,7 @@ class CreateProblems(Action):
 
             # Unique threads form their own unique problems
             for thread in unique_func_threads:
-                problems.append(set([report_map[thread]]))
+                problems.append({report_map[thread]})
 
         self.log_info("Creating problems from clusters")
         if speedup:
@@ -378,8 +379,8 @@ class CreateProblems(Action):
                             if last_occurrence < rep.last_occurrence:
                                 last_occurrence = rep.last_occurrence
 
-                            if db_report.component not in comps:
-                                comps[db_report.component] = 0
+                            if rep.component not in comps:
+                                comps[rep.component] = 0
 
                             comps[rep.component] += 1
                         self.update_comps(db, comps, new)
@@ -398,8 +399,8 @@ class CreateProblems(Action):
                                 if last_occurrence < rep.last_occurrence:
                                     last_occurrence = rep.last_occurrence
 
-                                if db_report.component not in comps:
-                                    comps[db_report.component] = 0
+                                if rep.component not in comps:
+                                    comps[rep.component] = 0
 
                                 comps[rep.component] += 1
                         orig_p = get_problem_by_id(db, origin_report.problem_id)
@@ -492,7 +493,7 @@ class CreateProblems(Action):
 
     def run(self, cmdline, db):
         if len(cmdline.problemtype) < 1:
-            ptypes = problemtypes.keys()
+            ptypes = list(problemtypes.keys())
         else:
             ptypes = cmdline.problemtype
 

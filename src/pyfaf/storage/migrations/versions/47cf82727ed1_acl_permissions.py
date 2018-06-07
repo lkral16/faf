@@ -32,7 +32,6 @@ down_revision = "2e5f6d8b68f5"
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-from pyfaf.storage import OpSysReleaseComponentAssociate
 
 
 def upgrade():
@@ -63,4 +62,3 @@ def downgrade():
         "opsysreleasescomponentsassociates",
         ["opsysreleasecompoents_id", "associatepeople_id"]
         )
-    

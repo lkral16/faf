@@ -90,24 +90,24 @@ class Generator(object):
         self.new.extend(objs)
 
     def begin(self, objstr):
-        print 'Generating %s' % objstr
+        print('Generating %s' % objstr)
         self.start_time = time.time()
         self.new = []
 
     def commit(self):
         elapsed = time.time() - self.start_time
         self.total_secs += elapsed
-        print '-> Done [%.2fs]' %  elapsed
+        print('-> Done [%.2fs]' %  elapsed)
         self.start_time = time.time()
         num_objs = len(self.new)
         self.total_objs += num_objs
-        print 'Adding %d objects' % num_objs
+        print('Adding %d objects' % num_objs)
         self.ses.add_all(self.new)
         self.ses.flush()
         self.ses.commit()
         elapsed = time.time() - self.start_time
         self.total_secs += elapsed
-        print '-> Done [%.2fs]' %  elapsed
+        print('-> Done [%.2fs]' %  elapsed)
 
     @staticmethod
     def get_release_end_date(since, opsys):
@@ -143,8 +143,8 @@ class Generator(object):
             relobjs = []
             for rel in releases:
                 relobjs.append(OpSysRelease(version=rel[0],
-                    releasedate=rel[1],
-                    status='ACTIVE'))
+                                            releasedate=rel[1],
+                                            status='ACTIVE'))
 
             opsysobj.releases = relobjs
             self.add(opsysobj)
@@ -199,7 +199,7 @@ class Generator(object):
                 new.component = comp
                 new.epoch = 0
                 new.version = '{0}.{1}'.format(random.randrange(0, 5),
-                    random.randrange(0, 20))
+                                               random.randrange(0, 20))
                 new.release = random.randrange(0, 100)
                 self.add(new)
 
@@ -311,8 +311,8 @@ class Generator(object):
 
                 current = []
                 last_occ = occ_date
-                crashed_pkgs = random.sample(packages, random.randrange(1,4))
-                related_pkgs = random.sample(packages, random.randrange(1,4))
+                crashed_pkgs = random.sample(packages, random.randrange(1, 4))
+                related_pkgs = random.sample(packages, random.randrange(1, 4))
 
                 for j in range(report.count):
                     if j > 1:
@@ -332,13 +332,13 @@ class Generator(object):
                     stat_map = [(ReportArch, [('arch', arch)]),
                                 (ReportOpSysRelease, [('opsysrelease', rel)]),
                                 (ReportHistoryMonthly, [('opsysrelease', rel),
-                                    ('month', month)]),
+                                                        ('month', month)]),
                                 (ReportHistoryWeekly, [('opsysrelease', rel),
-                                    ('week', week)]),
+                                                       ('week', week)]),
                                 (ReportHistoryDaily, [('opsysrelease', rel),
-                                    ('day', day)]),
+                                                      ('day', day)]),
                                 (ReportSelinuxMode, [('mode', smode)]),
-                                ]
+                               ]
 
                     # add crashed and related packages
                     for typ in ['CRASHED', 'RELATED']:
@@ -346,25 +346,25 @@ class Generator(object):
                             if randutils.toss():
                                 stat_map.append(
                                     (ReportPackage,
-                                        [('installed_package', pkg),
-                                        ('running_package', pkg),
-                                        ('type', typ)])
+                                     [('installed_package', pkg),
+                                      ('running_package', pkg),
+                                      ('type', typ)])
                                     )
 
                     if randutils.tosshigh():
                         stat_map.append((ReportUptime, [('uptime_exp',
-                            int(math.log(random.randrange(1, 100000))))]))
+                                                         int(math.log(random.randrange(1, 100000))))]))
 
                     if randutils.toss():
                         stat_map.append((ReportOpSysRelease,
-                            [('opsysrelease', random.choice(releases))]))
+                                         [('opsysrelease', random.choice(releases))]))
 
                     if randutils.tosslow():
                         stat_map.append((ReportBz,
-                            [('bzbug', random.choice(bugs))]))
+                                         [('bzbug', random.choice(bugs))]))
 
                     for table, cols in stat_map:
-                        fn = lambda x: type(x) == table
+                        fn = lambda x: isinstance(x, table)
                         for report_stat in filter(fn, current):
                             matching = True
                             for name, value in cols:
@@ -387,11 +387,11 @@ class Generator(object):
 
     def from_sql_file(self, fname):
         fname += '.sql'
-        print 'Loading %s' % fname
+        print('Loading %s' % fname)
         fixture_topdir = os.path.dirname(os.path.realpath(__file__))
 
         if not os.path.isfile(os.path.join(fixture_topdir, 'sql', fname)):
-                fixture_topdir = '/usr/share/faf/fixtures'
+            fixture_topdir = '/usr/share/faf/fixtures'
 
         with open(os.path.join(fixture_topdir, 'sql', fname)) as file:
             for line in file.readlines():
@@ -400,14 +400,14 @@ class Generator(object):
         self.ses.commit()
 
     def restore_package_deps(self):
-        print 'Restoring package dependencies from rpms'
+        print('Restoring package dependencies from rpms')
         for package in self.ses.query(Package):
             store_rpm_deps(self.db, package)
 
         self.ses.commit()
 
     def restore_lob_dir(self, url=None, cache=True):
-        print 'Restoring lob dir from remote archive'
+        print('Restoring lob dir from remote archive')
 
         if url is None:
             fixture_topdir = os.path.dirname(os.path.realpath(__file__))
@@ -425,16 +425,16 @@ class Generator(object):
         if cache:
             if os.path.isfile(cpath):
                 try:
-                    print 'Using {0}'.format(cpath)
+                    print('Using {0}'.format(cpath))
                     tar = tarfile.open(cpath, mode='r').extractall(
                         path=config.CONFIG["storage.lobdir"])
 
-                    print 'Lob dir restored successfuly from cache'
+                    print('Lob dir restored successfuly from cache')
                     return
                 except tarfile.TarError as ex:
-                    print 'Unable to extract archive: {0}'.format(str(ex))
+                    print('Unable to extract archive: {0}'.format(str(ex)))
 
-        print 'Using: {0}'.format(url)
+        print('Using: {0}'.format(url))
         try:
             rem = urllib2.urlopen(url, cpath)
             total_size = rem.info().getheader('Content-Length').strip()
@@ -454,7 +454,7 @@ class Generator(object):
                     percent = float(bytes_so_far) / total_size
                     percent = round(percent*100, 2)
                     sys.stdout.write("Downloaded %d of %d bytes (%0.2f%%)\r" %
-                                        (bytes_so_far, total_size, percent))
+                                     (bytes_so_far, total_size, percent))
 
                     if bytes_so_far >= total_size:
                         sys.stdout.write('\n')
@@ -462,11 +462,11 @@ class Generator(object):
             tar = tarfile.open(cpath, mode='r').extractall(
                 path=config.CONFIG["storage.lobdir"])
         except urllib2.URLError as ex:
-            print 'Unable to download archive: {0}'.format(str(ex))
+            print('Unable to download archive: {0}'.format(str(ex)))
         except tarfile.TarError as ex:
-            print 'Unable to extract archive: {0}'.format(str(ex))
+            print('Unable to extract archive: {0}'.format(str(ex)))
 
-        print 'Lob dir restored successfuly'
+        print('Lob dir restored successfuly')
 
         if not cache:
             os.unlink(cpath)
@@ -484,8 +484,8 @@ class Generator(object):
             self.bz_bugs()
             self.reports()
 
-            print 'All Done, added %d objects in %.2f seconds' % (
-                self.total_objs, self.total_secs)
+            print('All Done, added %d objects in %.2f seconds' % (
+                self.total_objs, self.total_secs))
 
         if realworld:
             self.from_sql_file('archs')
@@ -509,4 +509,4 @@ class Generator(object):
 
             self.restore_package_deps()
 
-            print 'All Done'
+            print('All Done')
