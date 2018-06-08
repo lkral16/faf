@@ -9,10 +9,10 @@
 {% from '_helpers.html' import show_backtrace %}
 
 {% block title %}Report #{{ report.id }} -
-{{ component.name }}
-{% if report.backtraces|length > 0 %}
-in {{ report.backtraces[0].crash_function }}
-{% endif %}
+  {{ component.name }}
+  {% if report.backtraces|length > 0 %}
+      in {{ report.backtraces[0].crash_function }}
+  {% endif %}
 {% endblock %}
 
 {% block js %}
@@ -32,6 +32,9 @@ in {{ report.backtraces[0].crash_function }}
           <h3>{{ report.reasons[0] }}</h3>
         {% else %}
           <h3>Info</h3>
+        {% endif %}
+        {% if unpackaged %}
+          Note: Executable of this report does not come from a package.
         {% endif %}
         <dl class='info dl-horizontal'>
           <dt>Problem</dt>
@@ -96,20 +99,20 @@ in {{ report.backtraces[0].crash_function }}
                 {% if loop.last %}
                   {{ unique_count }}
                 {% endif %}
-            </span>
-            <button id="archive-btn" class="btn btn-default">{% if report.archived %}Restore{% else %}Archive{% endif %}</button>
+              {% endfor %}
+            </dd>
           </div>
-        
           <dt class="hide">Quality</dt>
           <dd class="hide">{{ report.quality }}</dd>
-          <dt>External bugs</dt>
-            <dd>
-              {{ external_bugs(report.bugs) }}
-		{% if is_maintainer %}
+          {% if report.bugs %}
+	  <dt>External bugs</dt>
+          <dd>
+           {{ external_bugs(report.bugs) }}
+	   {% if is_maintainer %}
 			<a href="{{url_for('reports.associate_bug', report_id=report.id)}}" class="pficon-edit"></a>
-		{% endif %}
-            </dd>
-
+	   {% endif %}
+	  </dd>
+          {% endif %}
           {% if contact_emails %}
             <dt>Contact emails</dt>
             <dd>
@@ -119,16 +122,32 @@ in {{ report.backtraces[0].crash_function }}
             </dd>
           {% endif %}
           {% if report.urls %}
-            <dt>External URLs</dt>
+            <dt>External URLs
+              <a role="button" data-toggle="tooltip" title="Ordered by newest URL">
+                <span class="fa fa-lg fa-info-circle">
+              </a>
+            </dt>
             <dd>
               <ul>
-                {{ external_urls(report.urls) }}
+                {{ external_urls([report.urls]) }}
               </ul>
             </dd>
           {% endif %}
-	 </dl>
-        
-	  <script type="text/javascript">
+        </dl>
+        {% if is_maintainer %}
+          <div id="archive-data" class={% if report.archived %}"well"{% else %}"well-muted"{% endif %}>
+            <span id="archive-msg" {% if not report.archived %}class="text-muted"{% endif %}>
+                {% if report.archived %}
+                  This report was archived {{ report.archive.date }} by {{ report.archive.username }}.
+                  If you want to see it on reports dashboard restore it from archive.
+                {% else %}
+                  If you don't consider this report useful, you can archive
+                  it and it won't be displayed on reports dashboard.
+                {% endif %}
+            </span>
+            <button id="archive-btn" class="btn btn-default">{% if report.archived %}Restore{% else %}Archive{% endif %}</button>
+          </div>
+          <script type="text/javascript">
             var callback = function updatePage(result) {
               if (result.status == 'failure') {
                 alert('Archive action failed.');
@@ -160,6 +179,7 @@ in {{ report.backtraces[0].crash_function }}
             } document.getElementById('archive-btn').onclick = archive;
          </script>
         {% endif %}
+
         {# graphs #}
 
         {% if releases|length > 1 or arches|length > 1 %}
@@ -181,7 +201,6 @@ in {{ report.backtraces[0].crash_function }}
                 label: "{{ arch }}",
                 data: {{ count }}, } );
             {% endfor %}
-
             var pie_chart_options =  {
                 series: {
                   pie: {
@@ -189,7 +208,6 @@ in {{ report.backtraces[0].crash_function }}
                   },
                 },
               }
-
             {% if arches|length > 1 %}
               $.plot($('#arch_graph'), arch_data, pie_chart_options);
             {% endif %}
@@ -327,7 +345,6 @@ in {{ report.backtraces[0].crash_function }}
     $(document).ready(function () {
       $(".original_data").hide();
     });
-
     $(document).on("click","#switch_data",function(){
         $(".unique_data").toggle();
         $(".original_data").toggle();
@@ -338,7 +355,6 @@ in {{ report.backtraces[0].crash_function }}
             $(this).val("Hide unique");
             $(this).data("show", 1);
         }
-
     });
   </script>
 {% endblock %}
